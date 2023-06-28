@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use num_traits::ToPrimitive;
 use rust_lapper::{Interval, Lapper};
 use serde_json::Value;
 use solang::{
-    codegen::{self, Expression},
+    codegen,
     codegen::codegen,
     file_resolver::FileResolver,
     parse_and_resolve,
@@ -34,13 +35,9 @@ enum DefinitionIndex {
     Variable(usize),
     Struct(usize),
     Field(Type, usize),
+    Enum(usize),
+    Variant(usize, usize),
 }
-
-// #[derive(Debug)]
-// struct Definitions {
-//     // file: ast::File,
-//     inner: HashMap<DefinitionIndex, Loc>,
-// }
 
 type Definitions = HashMap<DefinitionIndex, (PathBuf, Range)>;
 
@@ -429,11 +426,15 @@ impl<'a> Builder<'a> {
                     val: HoverEntryInner("bytes".into(), None),
                 });
             }
-            ast::Expression::NumberLiteral { loc, ty, .. } => {
+            ast::Expression::NumberLiteral { loc, ty, value,.. } => {
+                let reference = match ty {
+                    Type::Enum(id) => Some(DefinitionIndex::Variant(*id, value.to_u64().unwrap() as _)),
+                    _ => None,
+                };
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(ty.to_string(self.ns), None),
+                    val: HoverEntryInner(ty.to_string(self.ns), reference),
                 });
             }
             ast::Expression::StructLiteral { values, .. }
@@ -913,7 +914,7 @@ impl<'a> Builder<'a> {
             ns,
         };
 
-        for enum_decl in &builder.ns.enums {
+        for (ei, enum_decl) in builder.ns.enums.iter().enumerate() {
             for (discriminant, (nam, loc)) in enum_decl.values.iter().enumerate() {
                 let val = format!("{nam} {discriminant}, \n\n");
                 builder.hovers.push(HoverEntry {
@@ -921,6 +922,7 @@ impl<'a> Builder<'a> {
                     stop: loc.end(),
                     val: HoverEntryInner(val, None),
                 });
+                builder.definitions.insert(DefinitionIndex::Variant(ei, discriminant), (ns.files[loc.file_no()].path.clone(), loc_to_range(loc, &ns.files[loc.file_no()])));
             }
 
             let val = render(&enum_decl.tags[..]);
@@ -929,6 +931,7 @@ impl<'a> Builder<'a> {
                 stop: enum_decl.loc.start() + enum_decl.name.len(),
                 val: HoverEntryInner(val, None),
             });
+            builder.definitions.insert(DefinitionIndex::Enum(ei), (ns.files[enum_decl.loc.file_no()].path.clone(), loc_to_range(&enum_decl.loc, &ns.files[enum_decl.loc.file_no()])));
         }
 
         for (si, struct_decl) in builder.ns.structs.iter().enumerate() {
@@ -1306,10 +1309,8 @@ impl LanguageServer for SolangServer {
             let files = self.files.lock().await;
             if let Some(cache) = files.get(&path) {
                 let hovers = &cache.hovers;
-
                 let f = &hovers.file;
                 let offset = f.get_offset(params.text_document_position_params.position.line as _, params.text_document_position_params.position.character as _);
-                // let loc = Loc::File(f.cache_no.unwrap(), offset, offset);
                 data_file
                     .write(format!("definition continuation! {:#?}, {:#?}, {:#?}\n", f.file_name(), f.cache_no.unwrap(), offset).as_bytes())
                     .expect("write failed");
@@ -1318,11 +1319,6 @@ impl LanguageServer for SolangServer {
                     .hovers
                     .find(offset, offset)
                     .min_by(|a, b| (a.stop - a.start).cmp(&(b.stop - b.start)))
-                    // .for_each(|hover| {
-                    //     data_file
-                    //         .write(format!("found hover: {:#?}\n", hover).as_bytes())
-                    //         .expect("write failed");
-                    // });
                 {
                     data_file
                         .write(format!("found hover: {:#?}\n", hover).as_bytes())
@@ -1350,98 +1346,11 @@ impl LanguageServer for SolangServer {
                             return ret;
                         }
                     }
-                
-                    // if let Loc::File(fno, s, e) = chosen_function.loc {
-                    //     if let Some(f) = ns.files.iter().find(|f| f.cache_no.unwrap() == fno) {
-                    //         let (start_line, start_col) = f.offset_to_line_column(s);
-                    //         let (end_line, end_col) = f.offset_to_line_column(e);
-                    //         return Ok(Some(GotoDefinitionResponse::Scalar(Location { 
-                    //             uri: Url {
-                    //                 // scheme: "file",
-                    //                 // cannot_be_a_base: false,
-                    //                 // username: "",
-                    //                 // password: None,
-                    //                 // host: None,
-                    //                 // port: None,
-                    //                 path: f.path,
-                    //                 // query: None,
-                    //                 // fragment: None,
-                    //             }, 
-                    //             range: Range { 
-                    //                 start: Position {line: start_line as _, character: start_col as _},
-                    //                 end: Position { line: end_line as _, character: end_col as _ },
-                    //             },
-                    //         })));
-                    //     }
-                    // }
-
-                    // if let Loc::File(fno, s, e) = chosen_function.loc {
-                    //     if let Some(f) = ns.files.iter().find(|f| f.cache_no.unwrap() == fno) {
-                    //         return Ok(Some(GotoDefinitionResponse::Scalar(Location { 
-                    //             uri: Url::parse(f.path.to_str().unwrap()).unwrap(), 
-                    //             range: loc_to_range(&chosen_function.loc, f),
-                    //         })));
-                    //     }
-                    // }
                 }
             }
         }
-
-        //     if let Some((_chosen_i, chosen_function)) = ns.functions.iter().enumerate().find(|(i, func)| {
-        //         data_file
-        //             .write(format!("checking function: {:#?} => {:#?}!\n", i, func.loc).as_bytes())
-        //             .expect("write failed");
-        //         if let Loc::File(fno, s, e) = func.loc {
-        //             fno == f.cache_no.unwrap() && s <= offset && offset <= e
-        //         } else {
-        //             false
-        //         }
-        //     }) 
-        //     {
-        //         data_file
-        //             .write(format!("definition continuation: found function {:#?}!\n", chosen_function.mangled_name).as_bytes())
-        //             .expect("write failed");
-                
-        //         // self.client
-        //         //     .log_message(MessageType::INFO, format!("definition continuation: found function {:#?}!", chosen_function.mangled_name))
-        //         //     .await;
-
-        //         // if let Loc::File(fno, s, e) = chosen_function.loc {
-        //         //     if let Some(f) = ns.files.iter().find(|f| f.cache_no.unwrap() == fno) {
-        //         //         let (start_line, start_col) = f.offset_to_line_column(s);
-        //         //         let (end_line, end_col) = f.offset_to_line_column(e);
-        //         //         return Ok(Some(GotoDefinitionResponse::Scalar(Location { 
-        //         //             uri: Url {
-        //         //                 // scheme: "file",
-        //         //                 // cannot_be_a_base: false,
-        //         //                 // username: "",
-        //         //                 // password: None,
-        //         //                 // host: None,
-        //         //                 // port: None,
-        //         //                 path: f.path,
-        //         //                 // query: None,
-        //         //                 // fragment: None,
-        //         //             }, 
-        //         //             range: Range { 
-        //         //                 start: Position {line: start_line as _, character: start_col as _},
-        //         //                 end: Position { line: end_line as _, character: end_col as _ },
-        //         //             },
-        //         //         })));
-        //         //     }
-        //         // }
-        //         if let Loc::File(fno, s, e) = chosen_function.loc {
-        //             if let Some(f) = ns.files.iter().find(|f| f.cache_no.unwrap() == fno) {
-        //                 return Ok(Some(GotoDefinitionResponse::Scalar(Location { 
-        //                     uri: Url::parse(f.path.to_str().unwrap()).unwrap(), 
-        //                     range: loc_to_range(&chosen_function.loc, f),
-        //                 })));
-        //             }
-        //         }
-        //     }
-
         Ok(None)
     }
-
 }
 
 /// Calculate the line and column from the Loc offset received from the parser
