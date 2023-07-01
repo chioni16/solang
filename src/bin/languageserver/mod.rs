@@ -19,17 +19,8 @@ use tower_lsp::{jsonrpc::Result, lsp_types::*, Client, LanguageServer, LspServic
 
 use crate::cli::{target_arg, LanguageServerCommand};
 
-struct Hovers {
-    file: ast::File,
-    hovers: Lapper<usize, String>,
-    references: Lapper<usize, DefinitionIndex>
-}
-
 type HoverEntry = Interval<usize, String>;
 type ReferenceEntry = Interval<usize, DefinitionIndex>;
-
-// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-// struct HoverEntryInner(String, Option<DefinitionIndex>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum DefinitionIndex {
@@ -44,7 +35,9 @@ enum DefinitionIndex {
 type Definitions = HashMap<DefinitionIndex, (PathBuf, Range)>;
 
 struct Cache {
-    hovers: Hovers,
+    file: ast::File,
+    hovers: Lapper<usize, String>,
+    references: Lapper<usize, DefinitionIndex>,
     definitions: Definitions,
 }
 
@@ -1106,13 +1099,10 @@ impl<'a> Builder<'a> {
         use std::fs;
         fs::write("/tmp/definitions",format!("{:#?}", builder.definitions)).expect("Unable to write file");
 
-        let hovers = Hovers {
+        Cache {
             file: ns.files[ns.top_file_no()].clone(),
             hovers: Lapper::new(builder.hovers),
             references: Lapper::new(builder.references),
-        };
-        Cache { 
-            hovers, 
             definitions: builder.definitions,
         }
     }
@@ -1307,19 +1297,18 @@ impl LanguageServer for SolangServer {
         if let Ok(path) = uri.to_file_path() {
             let files = self.files.lock().await;
             if let Some(cache) = files.get(&path) {
-                let hovers = &cache.hovers;
-                let offset = hovers
+                let offset = cache
                     .file
                     .get_offset(pos.line as usize, pos.character as usize);
 
                 // The shortest hover for the position will be most informative
-                if let Some(hover) = hovers
+                if let Some(hover) = cache
                     .hovers
                     .find(offset, offset)
                     .min_by(|a, b| (a.stop - a.start).cmp(&(b.stop - b.start)))
                 {
                     let loc = pt::Loc::File(0, hover.start, hover.stop);
-                    let range = loc_to_range(&loc, &hovers.file);
+                    let range = loc_to_range(&loc, &cache.file);
 
                     return Ok(Some(Hover {
                         contents: HoverContents::Scalar(MarkedString::String(
@@ -1350,14 +1339,13 @@ impl LanguageServer for SolangServer {
         if let Ok(path) = uri.to_file_path() {
             let files = self.files.lock().await;
             if let Some(cache) = files.get(&path) {
-                let hovers = &cache.hovers;
-                let f = &hovers.file;
+                let f = &cache.file;
                 let offset = f.get_offset(params.text_document_position_params.position.line as _, params.text_document_position_params.position.character as _);
                 data_file
                     .write(format!("definition continuation! {:#?}, {:#?}, {:#?}\n", f.file_name(), f.cache_no.unwrap(), offset).as_bytes())
                     .expect("write failed");
 
-                if let Some(reference) = hovers
+                if let Some(reference) = cache
                     .references
                     .find(offset, offset)
                     .min_by(|a, b| (a.stop - a.start).cmp(&(b.stop - b.start)))
