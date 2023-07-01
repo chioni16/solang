@@ -21,13 +21,15 @@ use crate::cli::{target_arg, LanguageServerCommand};
 
 struct Hovers {
     file: ast::File,
-    hovers: Lapper<usize, HoverEntryInner>,
+    hovers: Lapper<usize, String>,
+    references: Lapper<usize, DefinitionIndex>
 }
 
-type HoverEntry = Interval<usize, HoverEntryInner>;
+type HoverEntry = Interval<usize, String>;
+type ReferenceEntry = Interval<usize, DefinitionIndex>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct HoverEntryInner(String, Option<DefinitionIndex>);
+// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+// struct HoverEntryInner(String, Option<DefinitionIndex>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum DefinitionIndex {
@@ -189,6 +191,7 @@ impl SolangServer {
 struct Builder<'a> {
     hovers: Vec<HoverEntry>,
     definitions: Definitions,
+    references: Vec<ReferenceEntry>,
     ns: &'a ast::Namespace,
 }
 
@@ -253,7 +256,7 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: param.loc.start(),
                     stop: param.loc.end(),
-                    val: HoverEntryInner(val, None),
+                    val,
                 });
                 self.definitions.insert(DefinitionIndex::Variable(*var_no), (self.ns.files[loc.file_no()].path.clone(), loc_to_range(loc, &self.ns.files[loc.file_no()])));
             }
@@ -317,7 +320,7 @@ impl<'a> Builder<'a> {
                             self.hovers.push(HoverEntry {
                                 start: param.loc.start(),
                                 stop: param.loc.end(),
-                                val: HoverEntryInner(val, None),
+                                val,
                             });
                             // TODO
                             self.definitions.insert(DefinitionIndex::Variable(*var_no), (self.ns.files[param.loc.file_no()].path.clone(), loc_to_range(&param.loc, &self.ns.files[param.loc.file_no()])));
@@ -372,7 +375,7 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: event_loc.start(),
                     stop: event_loc.end(),
-                    val: HoverEntryInner(val, None),
+                    val,
                 });
 
                 for arg in args {
@@ -409,32 +412,39 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner("bool".into(), None),
+                    val: "bool".into(),
                 });
             }
             ast::Expression::BytesLiteral { loc, ty, .. } => {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(self.expanded_ty(ty), None),
+                    val: self.expanded_ty(ty),
                 });
             }
             ast::Expression::CodeLiteral { loc, .. } => {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner("bytes".into(), None),
+                    val: "bytes".into(),
                 });
             }
             ast::Expression::NumberLiteral { loc, ty, value,.. } => {
-                let reference = match ty {
-                    Type::Enum(id) => Some(DefinitionIndex::Variant(*id, value.to_u64().unwrap() as _)),
-                    _ => None,
-                };
+                // let reference = match ty {
+                //     Type::Enum(id) => Some(DefinitionIndex::Variant(*id, value.to_u64().unwrap() as _)),
+                //     _ => None,
+                // };
+                if let Type::Enum(id) = ty {
+                    self.references.push(ReferenceEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: DefinitionIndex::Variant(*id, value.to_u64().unwrap() as _),
+                    });
+                }
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(ty.to_string(self.ns), reference),
+                    val: ty.to_string(self.ns),
                 });
             }
             ast::Expression::StructLiteral { values, .. }
@@ -456,11 +466,11 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(format!(
+                    val: format!(
                         "{} {} addition",
                         if *unchecked { "unchecked " } else { "" },
                         ty.to_string(self.ns)
-                    ),None),
+                    ),
                 });
 
                 self.expression(left, symtab);
@@ -476,11 +486,11 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(format!(
+                    val: format!(
                         "{} {} subtraction",
                         if *unchecked { "unchecked " } else { "" },
                         ty.to_string(self.ns)
-                    ), None),
+                    ),
                 });
 
                 self.expression(left, symtab);
@@ -496,11 +506,11 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(format!(
+                    val: format!(
                         "{} {} multiply",
                         if *unchecked { "unchecked " } else { "" },
                         ty.to_string(self.ns)
-                    ), None),
+                    ),
                 });
 
                 self.expression(left, symtab);
@@ -515,7 +525,7 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(format!("{} divide", ty.to_string(self.ns)), None),
+                    val: format!("{} divide", ty.to_string(self.ns)),
                 });
 
                 self.expression(left, symtab);
@@ -530,7 +540,7 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(format!("{} modulo", ty.to_string(self.ns)), None),
+                    val: format!("{} modulo", ty.to_string(self.ns)),
                 });
 
                 self.expression(left, symtab);
@@ -546,11 +556,11 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(format!(
+                    val: format!(
                         "{} {}power",
                         if *unchecked { "unchecked " } else { "" },
                         ty.to_string(self.ns)
-                    ), None),
+                    ),
                 });
 
                 self.expression(base, symtab);
@@ -610,7 +620,12 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(val, Some(DefinitionIndex::Variable(*var_no))),
+                    val,
+                });
+                self.references.push(ReferenceEntry {
+                    start: loc.start(),
+                    stop: loc.end(),
+                    val: DefinitionIndex::Variable(*var_no),
                 });
             }
             ast::Expression::ConstantVariable { loc, ty, var_no, .. } => {
@@ -618,7 +633,12 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(val, Some(DefinitionIndex::Variable(*var_no))),
+                    val,
+                });
+                self.references.push(ReferenceEntry {
+                    start: loc.start(),
+                    stop: loc.end(),
+                    val: DefinitionIndex::Variable(*var_no),
                 });
             }
             ast::Expression::StorageVariable { loc, ty, var_no, .. } => {
@@ -626,7 +646,12 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(val, Some(DefinitionIndex::Variable(*var_no))),
+                    val,
+                });
+                self.references.push(ReferenceEntry {
+                    start: loc.start(),
+                    stop: loc.end(),
+                    val: DefinitionIndex::Variable(*var_no),
                 });
             }
             // Load expression
@@ -674,7 +699,12 @@ impl<'a> Builder<'a> {
                         self.hovers.push(HoverEntry {
                             start: loc.start(),
                             stop: loc.end(),
-                            val: HoverEntryInner(self.expanded_ty(outer_ty), Some(DefinitionIndex::Field(ty.clone(), *field))),
+                            val: self.expanded_ty(outer_ty),
+                        });
+                        self.references.push(ReferenceEntry {
+                            start: loc.start(),
+                            stop: loc.end(),
+                            val: DefinitionIndex::Field(ty.clone(), *field),
                         });
                     }
                     _ => {}
@@ -744,7 +774,12 @@ impl<'a> Builder<'a> {
                     self.hovers.push(HoverEntry {
                         start: loc.start(),
                         stop: loc.end(),
-                        val: HoverEntryInner(val, Some(DefinitionIndex::Function(*function_no))),
+                        val,
+                    });
+                    self.references.push(ReferenceEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: DefinitionIndex::Function(*function_no),
                     });
                 }
 
@@ -794,7 +829,12 @@ impl<'a> Builder<'a> {
                     self.hovers.push(HoverEntry {
                         start: loc.start(),
                         stop: loc.end(),
-                        val: HoverEntryInner(val, Some(DefinitionIndex::Function(*function_no))),
+                        val,
+                    });
+                    self.references.push(ReferenceEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: DefinitionIndex::Function(*function_no),
                     });
 
                     self.expression(address, symtab);
@@ -863,7 +903,7 @@ impl<'a> Builder<'a> {
                 self.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(msg, None),
+                    val: msg,
                 });
                 for expr in args {
                     self.expression(expr, symtab);
@@ -889,7 +929,7 @@ impl<'a> Builder<'a> {
         self.hovers.push(HoverEntry {
             start: contract.loc.start(),
             stop: contract.loc.end(),
-            val: HoverEntryInner(val, None),
+            val,
         });
         if let Some(expr) = &contract.initializer {
             self.expression(expr, symtab);
@@ -902,7 +942,7 @@ impl<'a> Builder<'a> {
         self.hovers.push(HoverEntry {
             start: field.loc.start(),
             stop: field.loc.end(),
-            val: HoverEntryInner(val, None),
+            val,
         });
     }
 
@@ -911,6 +951,7 @@ impl<'a> Builder<'a> {
         let mut builder = Builder {
             hovers: Vec::new(),
             definitions: HashMap::new(), 
+            references: Vec::new(),
             ns,
         };
 
@@ -920,7 +961,7 @@ impl<'a> Builder<'a> {
                 builder.hovers.push(HoverEntry {
                     start: loc.start(),
                     stop: loc.end(),
-                    val: HoverEntryInner(val, None),
+                    val,
                 });
                 builder.definitions.insert(DefinitionIndex::Variant(ei, discriminant), (ns.files[loc.file_no()].path.clone(), loc_to_range(loc, &ns.files[loc.file_no()])));
             }
@@ -929,7 +970,7 @@ impl<'a> Builder<'a> {
             builder.hovers.push(HoverEntry {
                 start: enum_decl.loc.start(),
                 stop: enum_decl.loc.start() + enum_decl.name.len(),
-                val: HoverEntryInner(val, None),
+                val,
             });
             builder.definitions.insert(DefinitionIndex::Enum(ei), (ns.files[enum_decl.loc.file_no()].path.clone(), loc_to_range(&enum_decl.loc, &ns.files[enum_decl.loc.file_no()])));
         }
@@ -945,7 +986,7 @@ impl<'a> Builder<'a> {
                 builder.hovers.push(HoverEntry {
                     start: *start,
                     stop: start + struct_decl.name.len(),
-                    val: HoverEntryInner(val, None),
+                    val,
                 });
                 builder.definitions.insert(DefinitionIndex::Struct(si), (ns.files[struct_decl.loc.file_no()].path.clone(), loc_to_range(&struct_decl.loc, &ns.files[struct_decl.loc.file_no()])));
             }
@@ -969,7 +1010,7 @@ impl<'a> Builder<'a> {
                         builder.hovers.push(HoverEntry {
                             start: loc.start(),
                             stop: loc.end(),
-                            val: HoverEntryInner(format!("payer account: {}", name), None),
+                            val: format!("payer account: {}", name),
                         });
                     }
                 }
@@ -980,7 +1021,7 @@ impl<'a> Builder<'a> {
                 builder.hovers.push(HoverEntry {
                     start: param.loc.start(),
                     stop: param.loc.end(),
-                    val: HoverEntryInner(val, None),
+                    val,
                 });
                 if let Some(var_no) = func.symtable.arguments.get(i) {
                     if let Some(var_no) = var_no {
@@ -994,7 +1035,7 @@ impl<'a> Builder<'a> {
                 builder.hovers.push(HoverEntry {
                     start: ret.loc.start(),
                     stop: ret.loc.end(),
-                    val: HoverEntryInner(val, None),
+                    val,
                 });
             }
 
@@ -1013,7 +1054,7 @@ impl<'a> Builder<'a> {
             builder.hovers.push(HoverEntry {
                 start: constant.loc.start(),
                 stop: constant.loc.start() + constant.name.len(),
-                val: HoverEntryInner(val, None),
+                val,
             });
             // builder.definitions.insert(DefinitionIndex::Variable(i), (ns.files[func.loc.file_no()].clone(), func.loc));
         }
@@ -1023,7 +1064,7 @@ impl<'a> Builder<'a> {
             builder.hovers.push(HoverEntry {
                 start: contract.loc.start(),
                 stop: contract.loc.start() + val.len(),
-                val: HoverEntryInner(val, None),
+                val,
             });
 
             for variable in &contract.variables {
@@ -1034,7 +1075,7 @@ impl<'a> Builder<'a> {
                 builder.hovers.push(HoverEntry {
                     start: variable.loc.start(),
                     stop: variable.loc.start() + variable.name.len(),
-                    val: HoverEntryInner(val, None),
+                    val,
                 });
             }
         }
@@ -1047,7 +1088,7 @@ impl<'a> Builder<'a> {
             builder.hovers.push(HoverEntry {
                 start: event.loc.start(),
                 stop: event.loc.start() + event.name.len(),
-                val: HoverEntryInner(val, None),
+                val,
             });
         }
 
@@ -1058,7 +1099,7 @@ impl<'a> Builder<'a> {
                     .hover_overrides
                     .get(&pt::Loc::File(0, lookup.start, lookup.stop))
             {
-                lookup.val.0 = msg.clone();
+                lookup.val = msg.clone();
             }
         }
 
@@ -1068,6 +1109,7 @@ impl<'a> Builder<'a> {
         let hovers = Hovers {
             file: ns.files[ns.top_file_no()].clone(),
             hovers: Lapper::new(builder.hovers),
+            references: Lapper::new(builder.references),
         };
         Cache { 
             hovers, 
@@ -1281,7 +1323,7 @@ impl LanguageServer for SolangServer {
 
                     return Ok(Some(Hover {
                         contents: HoverContents::Scalar(MarkedString::String(
-                            hover.val.0.to_string(),
+                            hover.val.to_string(),
                         )),
                         range: Some(range),
                     }));
@@ -1315,36 +1357,35 @@ impl LanguageServer for SolangServer {
                     .write(format!("definition continuation! {:#?}, {:#?}, {:#?}\n", f.file_name(), f.cache_no.unwrap(), offset).as_bytes())
                     .expect("write failed");
 
-                if let Some(hover) = hovers
-                    .hovers
+                if let Some(reference) = hovers
+                    .references
                     .find(offset, offset)
                     .min_by(|a, b| (a.stop - a.start).cmp(&(b.stop - b.start)))
                 {
                     data_file
-                        .write(format!("found hover: {:#?}\n", hover).as_bytes())
+                        .write(format!("found hover: {:#?}\n", reference).as_bytes())
                         .expect("write failed");
 
-                    if let Some(ref di) = hover.val.1 {
+                    let di = &reference.val;
+                    data_file
+                        .write(format!("found definition index from hover: {:#?}\n", di).as_bytes())
+                        .expect("write failed");
+                    if let Some((path, range)) = cache.definitions.get(di) {
                         data_file
-                            .write(format!("found definition index from hover: {:#?}\n", di).as_bytes())
+                            .write(format!("found corresponding definition index in the cache: {:#?} - {:#?}\n", path, range).as_bytes())
                             .expect("write failed");
-                        if let Some((path, range)) = cache.definitions.get(di) {
-                            data_file
-                                .write(format!("found corresponding definition index in the cache: {:#?} - {:#?}\n", path, range).as_bytes())
-                                .expect("write failed");
-                            let uri = Url::from_file_path(path).unwrap();
-                            data_file
-                                .write(format!("uri: {:#?}\n", uri).as_bytes())
-                                .expect("write failed");
-                            let ret = Ok(Some(GotoDefinitionResponse::Scalar(Location { 
-                                uri,
-                                range: *range,
-                            })));
-                            data_file
-                                .write(format!("definition response: {:#?}\n", ret).as_bytes())
-                                .expect("write failed");
-                            return ret;
-                        }
+                        let uri = Url::from_file_path(path).unwrap();
+                        data_file
+                            .write(format!("uri: {:#?}\n", uri).as_bytes())
+                            .expect("write failed");
+                        let ret = Ok(Some(GotoDefinitionResponse::Scalar(Location { 
+                            uri,
+                            range: *range,
+                        })));
+                        data_file
+                            .write(format!("definition response: {:#?}\n", ret).as_bytes())
+                            .expect("write failed");
+                        return ret;
                     }
                 }
             }
