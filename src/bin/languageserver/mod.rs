@@ -38,7 +38,6 @@ struct Cache {
     file: ast::File,
     hovers: Lapper<usize, String>,
     references: Lapper<usize, DefinitionIndex>,
-    definitions: Definitions,
 }
 
 pub struct SolangServer {
@@ -47,6 +46,7 @@ pub struct SolangServer {
     importpaths: Vec<PathBuf>,
     importmaps: Vec<(String, PathBuf)>,
     files: Mutex<HashMap<PathBuf, Cache>>,
+    definitions: Mutex<Definitions>,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -77,6 +77,7 @@ pub async fn start_server(language_args: &LanguageServerCommand) -> ! {
         files: Mutex::new(HashMap::new()),
         importpaths,
         importmaps,
+        definitions: Mutex::new(HashMap::new()),
     });
 
     Server::new(stdin, stdout, socket).serve(service).await;
@@ -172,19 +173,36 @@ impl SolangServer {
 
             let res = self.client.publish_diagnostics(uri, diags, None);
 
-            let cache = Builder::build(&ns);
+            let (caches, definitions) = Builder::build(&ns);
 
-            self.files.lock().await.insert(path, cache);
-
+            use std::fs::OpenOptions;
+            use std::io::Write;
+            let mut data_file = OpenOptions::new()
+                .append(true)
+                .open("/tmp/caches")
+                .expect("cannot open file");
+            let mut files = self.files.lock().await;
+            for (f, c) in ns.files.iter().zip(caches.into_iter()) {
+                // TODO
+                let fname = dir.join(f.file_name());
+                data_file
+                    .write(format!("{:#?}\n", fname).as_bytes())
+                    .expect("write failed");
+                files.insert(fname, c);
+            }
+            *self.definitions.lock().await = definitions;
+            data_file
+                .write(format!("=======================================\n").as_bytes())
+                .expect("write failed");
             res.await;
         }
     }
 }
 
 struct Builder<'a> {
-    hovers: Vec<HoverEntry>,
+    hovers: Vec<(usize, HoverEntry)>,
     definitions: Definitions,
-    references: Vec<ReferenceEntry>,
+    references: Vec<(usize, ReferenceEntry)>,
     ns: &'a ast::Namespace,
 }
 
@@ -246,11 +264,14 @@ impl<'a> Builder<'a> {
                     }
                 }
 
-                self.hovers.push(HoverEntry {
-                    start: param.loc.start(),
-                    stop: param.loc.end(),
-                    val,
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: param.loc.start(),
+                        stop: param.loc.end(),
+                        val,
+                    },
+                ));
                 self.definitions.insert(DefinitionIndex::Variable(*var_no), (self.ns.files[loc.file_no()].path.clone(), loc_to_range(loc, &self.ns.files[loc.file_no()])));
             }
             ast::Statement::If(_, _, expr, stat1, stat2) => {
@@ -310,11 +331,14 @@ impl<'a> Builder<'a> {
                         ast::DestructureField::VariableDecl(var_no, param) => {
                             let val = self.expanded_ty(&param.ty);
 
-                            self.hovers.push(HoverEntry {
-                                start: param.loc.start(),
-                                stop: param.loc.end(),
-                                val,
-                            });
+                            self.hovers.push((
+                                get_file_no_from_loc(&param.loc).unwrap(),
+                                HoverEntry {
+                                    start: param.loc.start(),
+                                    stop: param.loc.end(),
+                                    val,
+                                },
+                            ));
                             // TODO
                             self.definitions.insert(DefinitionIndex::Variable(*var_no), (self.ns.files[param.loc.file_no()].path.clone(), loc_to_range(&param.loc, &self.ns.files[param.loc.file_no()])));
                         }
@@ -365,11 +389,14 @@ impl<'a> Builder<'a> {
                 )
                 .unwrap();
 
-                self.hovers.push(HoverEntry {
-                    start: event_loc.start(),
-                    stop: event_loc.end(),
-                    val,
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(event_loc).unwrap(),
+                    HoverEntry {
+                        start: event_loc.start(),
+                        stop: event_loc.end(),
+                        val,
+                    }
+                ));
 
                 for arg in args {
                     self.expression(arg, symtab);
@@ -402,25 +429,34 @@ impl<'a> Builder<'a> {
         match expr {
             // Variable types expression
             ast::Expression::BoolLiteral { loc, .. } => {
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: "bool".into(),
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: "bool".into(),
+                    },
+                ));
             }
             ast::Expression::BytesLiteral { loc, ty, .. } => {
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: self.expanded_ty(ty),
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: self.expanded_ty(ty),
+                    },
+                ));
             }
             ast::Expression::CodeLiteral { loc, .. } => {
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: "bytes".into(),
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: "bytes".into(),
+                    },
+                ));
             }
             ast::Expression::NumberLiteral { loc, ty, value,.. } => {
                 // let reference = match ty {
@@ -428,17 +464,23 @@ impl<'a> Builder<'a> {
                 //     _ => None,
                 // };
                 if let Type::Enum(id) = ty {
-                    self.references.push(ReferenceEntry {
+                    self.references.push((
+                        get_file_no_from_loc(loc).unwrap(),
+                        ReferenceEntry {
+                            start: loc.start(),
+                            stop: loc.end(),
+                            val: DefinitionIndex::Variant(*id, value.to_u64().unwrap() as _),
+                        },
+                    ));
+                }
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
                         start: loc.start(),
                         stop: loc.end(),
-                        val: DefinitionIndex::Variant(*id, value.to_u64().unwrap() as _),
-                    });
-                }
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: ty.to_string(self.ns),
-                });
+                        val: ty.to_string(self.ns),
+                    }
+                ));
             }
             ast::Expression::StructLiteral { values, .. }
             | ast::Expression::ArrayLiteral { values, .. }
@@ -456,15 +498,18 @@ impl<'a> Builder<'a> {
                 left,
                 right,
             } => {
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: format!(
-                        "{} {} addition",
-                        if *unchecked { "unchecked " } else { "" },
-                        ty.to_string(self.ns)
-                    ),
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: format!(
+                            "{} {} addition",
+                            if *unchecked { "unchecked " } else { "" },
+                            ty.to_string(self.ns)
+                        ),
+                    },
+                ));
 
                 self.expression(left, symtab);
                 self.expression(right, symtab);
@@ -476,15 +521,18 @@ impl<'a> Builder<'a> {
                 left,
                 right,
             } => {
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: format!(
-                        "{} {} subtraction",
-                        if *unchecked { "unchecked " } else { "" },
-                        ty.to_string(self.ns)
-                    ),
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: format!(
+                            "{} {} subtraction",
+                            if *unchecked { "unchecked " } else { "" },
+                            ty.to_string(self.ns)
+                        ),
+                    }
+                ));
 
                 self.expression(left, symtab);
                 self.expression(right, symtab);
@@ -496,15 +544,18 @@ impl<'a> Builder<'a> {
                 left,
                 right,
             } => {
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: format!(
-                        "{} {} multiply",
-                        if *unchecked { "unchecked " } else { "" },
-                        ty.to_string(self.ns)
-                    ),
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: format!(
+                            "{} {} multiply",
+                            if *unchecked { "unchecked " } else { "" },
+                            ty.to_string(self.ns)
+                        ),
+                    },
+                ));
 
                 self.expression(left, symtab);
                 self.expression(right, symtab);
@@ -515,11 +566,14 @@ impl<'a> Builder<'a> {
                 left,
                 right,
             } => {
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: format!("{} divide", ty.to_string(self.ns)),
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: format!("{} divide", ty.to_string(self.ns)),
+                    },
+                ));
 
                 self.expression(left, symtab);
                 self.expression(right, symtab);
@@ -530,11 +584,14 @@ impl<'a> Builder<'a> {
                 left,
                 right,
             } => {
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: format!("{} modulo", ty.to_string(self.ns)),
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: format!("{} modulo", ty.to_string(self.ns)),
+                    },
+                ));
 
                 self.expression(left, symtab);
                 self.expression(right, symtab);
@@ -546,15 +603,18 @@ impl<'a> Builder<'a> {
                 base,
                 exp,
             } => {
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: format!(
-                        "{} {}power",
-                        if *unchecked { "unchecked " } else { "" },
-                        ty.to_string(self.ns)
-                    ),
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: format!(
+                            "{} {}power",
+                            if *unchecked { "unchecked " } else { "" },
+                            ty.to_string(self.ns)
+                        ),
+                    },
+                ));
 
                 self.expression(base, symtab);
                 self.expression(exp, symtab);
@@ -610,42 +670,60 @@ impl<'a> Builder<'a> {
                     }
                 }
 
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val,
-                });
-                self.references.push(ReferenceEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: DefinitionIndex::Variable(*var_no),
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val,
+                    },
+                ));
+                self.references.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    ReferenceEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: DefinitionIndex::Variable(*var_no),
+                    },
+                ));
             }
             ast::Expression::ConstantVariable { loc, ty, var_no, .. } => {
                 let val = format!("constant ({})", self.expanded_ty(ty));
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val,
-                });
-                self.references.push(ReferenceEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: DefinitionIndex::Variable(*var_no),
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val,
+                    },
+                ));
+                self.references.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    ReferenceEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: DefinitionIndex::Variable(*var_no),
+                    },
+                ));
             }
             ast::Expression::StorageVariable { loc, ty, var_no, .. } => {
                 let val = format!("({})", self.expanded_ty(ty));
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val,
-                });
-                self.references.push(ReferenceEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: DefinitionIndex::Variable(*var_no),
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val,
+                    },
+                ));
+                self.references.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    ReferenceEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: DefinitionIndex::Variable(*var_no),
+                    },
+                ));
             }
             // Load expression
             ast::Expression::Load { expr, .. }
@@ -689,16 +767,22 @@ impl<'a> Builder<'a> {
                 let outer_ty = ty;
                 match &**expr {
                     solang::sema::ast::Expression::Variable {ty, .. } => {
-                        self.hovers.push(HoverEntry {
-                            start: loc.start(),
-                            stop: loc.end(),
-                            val: self.expanded_ty(outer_ty),
-                        });
-                        self.references.push(ReferenceEntry {
-                            start: loc.start(),
-                            stop: loc.end(),
-                            val: DefinitionIndex::Field(ty.clone(), *field),
-                        });
+                        self.hovers.push((
+                            get_file_no_from_loc(loc).unwrap(),
+                            HoverEntry {
+                                start: loc.start(),
+                                stop: loc.end(),
+                                val: self.expanded_ty(outer_ty),
+                            },
+                        ));
+                        self.references.push((
+                            get_file_no_from_loc(loc).unwrap(),
+                            ReferenceEntry {
+                                start: loc.start(),
+                                stop: loc.end(),
+                                val: DefinitionIndex::Field(ty.clone(), *field),
+                            },
+                        ));
                     }
                     _ => {}
                 }
@@ -764,16 +848,22 @@ impl<'a> Builder<'a> {
                     }
 
                     val = format!("{val})");
-                    self.hovers.push(HoverEntry {
-                        start: loc.start(),
-                        stop: loc.end(),
-                        val,
-                    });
-                    self.references.push(ReferenceEntry {
+                    self.hovers.push((
+                        get_file_no_from_loc(loc).unwrap(),
+                        HoverEntry {
+                            start: loc.start(),
+                            stop: loc.end(),
+                            val,
+                        },
+                    ));
+                    self.references.push((
+                        get_file_no_from_loc(loc).unwrap(),
+                        ReferenceEntry {
                         start: loc.start(),
                         stop: loc.end(),
                         val: DefinitionIndex::Function(*function_no),
-                    });
+                        },
+                    ));
                 }
 
                 for arg in args {
@@ -819,16 +909,22 @@ impl<'a> Builder<'a> {
                     }
 
                     val = format!("{val})");
-                    self.hovers.push(HoverEntry {
+                    self.hovers.push((
+                        get_file_no_from_loc(loc).unwrap(),
+                        HoverEntry {
                         start: loc.start(),
                         stop: loc.end(),
                         val,
-                    });
-                    self.references.push(ReferenceEntry {
-                        start: loc.start(),
-                        stop: loc.end(),
-                        val: DefinitionIndex::Function(*function_no),
-                    });
+                        },
+                    ));
+                    self.references.push((
+                        get_file_no_from_loc(loc).unwrap(),
+                        ReferenceEntry {
+                            start: loc.start(),
+                            stop: loc.end(),
+                            val: DefinitionIndex::Function(*function_no),
+                        },
+                    ));
 
                     self.expression(address, symtab);
                     for arg in args {
@@ -893,11 +989,14 @@ impl<'a> Builder<'a> {
                     }
                     msg = format!("{}): {}", msg, protval.doc);
                 }
-                self.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val: msg,
-                });
+                self.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val: msg,
+                    },
+                ));
                 for expr in args {
                     self.expression(expr, symtab);
                 }
@@ -919,11 +1018,14 @@ impl<'a> Builder<'a> {
     // Constructs contract fields and stores it in the lookup table.
     fn contract_variable(&mut self, contract: &ast::Variable, symtab: &symtable::Symtable) {
         let val = format!("{} {}", self.expanded_ty(&contract.ty), contract.name);
-        self.hovers.push(HoverEntry {
-            start: contract.loc.start(),
-            stop: contract.loc.end(),
-            val,
-        });
+        self.hovers.push((
+            get_file_no_from_loc(&contract.loc).unwrap(),
+            HoverEntry {
+                start: contract.loc.start(),
+                stop: contract.loc.end(),
+                val,
+            },
+        ));
         if let Some(expr) = &contract.initializer {
             self.expression(expr, symtab);
         }
@@ -932,15 +1034,18 @@ impl<'a> Builder<'a> {
     // Constructs struct fields and stores it in the lookup table.
     fn field(&mut self, field: &ast::Parameter) {
         let val = format!("{} {}", field.ty.to_string(self.ns), field.name_as_str());
-        self.hovers.push(HoverEntry {
-            start: field.loc.start(),
-            stop: field.loc.end(),
-            val,
-        });
+        self.hovers.push((
+            get_file_no_from_loc(&field.loc).unwrap(),
+            HoverEntry {
+                start: field.loc.start(),
+                stop: field.loc.end(),
+                val,
+            },
+        ));
     }
 
     // Traverses namespace to build messages stored in the lookup table for hover feature.
-    fn build(ns: &ast::Namespace) -> Cache {
+    fn build(ns: &ast::Namespace) -> (Vec<Cache>, Definitions) {
         let mut builder = Builder {
             hovers: Vec::new(),
             definitions: HashMap::new(), 
@@ -951,20 +1056,26 @@ impl<'a> Builder<'a> {
         for (ei, enum_decl) in builder.ns.enums.iter().enumerate() {
             for (discriminant, (nam, loc)) in enum_decl.values.iter().enumerate() {
                 let val = format!("{nam} {discriminant}, \n\n");
-                builder.hovers.push(HoverEntry {
-                    start: loc.start(),
-                    stop: loc.end(),
-                    val,
-                });
+                builder.hovers.push((
+                    get_file_no_from_loc(loc).unwrap(),
+                    HoverEntry {
+                        start: loc.start(),
+                        stop: loc.end(),
+                        val,
+                    },
+                ));
                 builder.definitions.insert(DefinitionIndex::Variant(ei, discriminant), (ns.files[loc.file_no()].path.clone(), loc_to_range(loc, &ns.files[loc.file_no()])));
             }
 
             let val = render(&enum_decl.tags[..]);
-            builder.hovers.push(HoverEntry {
-                start: enum_decl.loc.start(),
-                stop: enum_decl.loc.start() + enum_decl.name.len(),
-                val,
-            });
+            builder.hovers.push((
+                get_file_no_from_loc(&enum_decl.loc).unwrap(),
+                HoverEntry {
+                    start: enum_decl.loc.start(),
+                    stop: enum_decl.loc.start() + enum_decl.name.len(),
+                    val,
+                },
+            ));
             builder.definitions.insert(DefinitionIndex::Enum(ei), (ns.files[enum_decl.loc.file_no()].path.clone(), loc_to_range(&enum_decl.loc, &ns.files[enum_decl.loc.file_no()])));
         }
 
@@ -976,11 +1087,14 @@ impl<'a> Builder<'a> {
                 }
 
                 let val = render(&struct_decl.tags[..]);
-                builder.hovers.push(HoverEntry {
-                    start: *start,
-                    stop: start + struct_decl.name.len(),
-                    val,
-                });
+                builder.hovers.push((
+                    get_file_no_from_loc(&struct_decl.loc).unwrap(),
+                    HoverEntry {
+                        start: *start,
+                        stop: start + struct_decl.name.len(),
+                        val,
+                    },
+                ));
                 builder.definitions.insert(DefinitionIndex::Struct(si), (ns.files[struct_decl.loc.file_no()].path.clone(), loc_to_range(&struct_decl.loc, &ns.files[struct_decl.loc.file_no()])));
             }
         }
@@ -1000,22 +1114,28 @@ impl<'a> Builder<'a> {
                     }
 
                     ast::ConstructorAnnotation::Payer(loc, name) => {
-                        builder.hovers.push(HoverEntry {
-                            start: loc.start(),
-                            stop: loc.end(),
-                            val: format!("payer account: {}", name),
-                        });
+                        builder.hovers.push((
+                            get_file_no_from_loc(loc).unwrap(),
+                            HoverEntry {
+                                start: loc.start(),
+                                stop: loc.end(),
+                                val: format!("payer account: {}", name),
+                            },
+                        ));
                     }
                 }
             }
 
             for (i, param) in func.params.iter().enumerate() {
                 let val = builder.expanded_ty(&param.ty);
-                builder.hovers.push(HoverEntry {
-                    start: param.loc.start(),
-                    stop: param.loc.end(),
-                    val,
-                });
+                builder.hovers.push((
+                    get_file_no_from_loc(&param.loc).unwrap(),
+                    HoverEntry {
+                        start: param.loc.start(),
+                        stop: param.loc.end(),
+                        val,
+                    },
+                ));
                 if let Some(var_no) = func.symtable.arguments.get(i) {
                     if let Some(var_no) = var_no {
                         builder.definitions.insert(DefinitionIndex::Variable(*var_no), (builder.ns.files[param.loc.file_no()].path.clone(), loc_to_range(&param.loc, &builder.ns.files[param.loc.file_no()])));
@@ -1025,11 +1145,14 @@ impl<'a> Builder<'a> {
 
             for ret in &*func.returns {
                 let val = builder.expanded_ty(&ret.ty);
-                builder.hovers.push(HoverEntry {
-                    start: ret.loc.start(),
-                    stop: ret.loc.end(),
-                    val,
-                });
+                builder.hovers.push((
+                    get_file_no_from_loc(&ret.loc).unwrap(),
+                    HoverEntry {
+                        start: ret.loc.start(),
+                        stop: ret.loc.end(),
+                        val,
+                    },
+                ));
             }
 
             for stmt in &func.body {
@@ -1044,32 +1167,41 @@ impl<'a> Builder<'a> {
             builder.contract_variable(constant, &samptb);
 
             let val = render(&constant.tags[..]);
-            builder.hovers.push(HoverEntry {
-                start: constant.loc.start(),
-                stop: constant.loc.start() + constant.name.len(),
-                val,
-            });
+            builder.hovers.push((
+                get_file_no_from_loc(&constant.loc).unwrap(),
+                HoverEntry {
+                    start: constant.loc.start(),
+                    stop: constant.loc.start() + constant.name.len(),
+                    val,
+                },
+            ));
             // builder.definitions.insert(DefinitionIndex::Variable(i), (ns.files[func.loc.file_no()].clone(), func.loc));
         }
 
         for contract in &builder.ns.contracts {
             let val = render(&contract.tags[..]);
-            builder.hovers.push(HoverEntry {
-                start: contract.loc.start(),
-                stop: contract.loc.start() + val.len(),
-                val,
-            });
+            builder.hovers.push((
+                get_file_no_from_loc(&contract.loc).unwrap(),
+                HoverEntry {
+                    start: contract.loc.start(),
+                    stop: contract.loc.start() + val.len(),
+                    val,
+                },
+            ));
 
             for variable in &contract.variables {
                 let symtable = symtable::Symtable::new();
                 builder.contract_variable(variable, &symtable);
 
                 let val = render(&variable.tags[..]);
-                builder.hovers.push(HoverEntry {
-                    start: variable.loc.start(),
-                    stop: variable.loc.start() + variable.name.len(),
-                    val,
-                });
+                builder.hovers.push((
+                    get_file_no_from_loc(&variable.loc).unwrap(),
+                    HoverEntry {
+                        start: variable.loc.start(),
+                        stop: variable.loc.start() + variable.name.len(),
+                        val,
+                    },
+                ));
             }
         }
 
@@ -1078,11 +1210,14 @@ impl<'a> Builder<'a> {
                 builder.field(field);
             }
             let val = render(&event.tags[..]);
-            builder.hovers.push(HoverEntry {
-                start: event.loc.start(),
-                stop: event.loc.start() + event.name.len(),
-                val,
-            });
+            builder.hovers.push((
+                get_file_no_from_loc(&event.loc).unwrap(),
+                HoverEntry {
+                    start: event.loc.start(),
+                    stop: event.loc.start() + event.name.len(),
+                    val,
+                },
+            ));
         }
 
         for lookup in builder.hovers.iter_mut() {
@@ -1090,21 +1225,30 @@ impl<'a> Builder<'a> {
                 builder
                     .ns
                     .hover_overrides
-                    .get(&pt::Loc::File(0, lookup.start, lookup.stop))
+                    .get(&pt::Loc::File(lookup.0, lookup.1.start, lookup.1.stop))
             {
-                lookup.val = msg.clone();
+                lookup.1.val = msg.clone();
             }
         }
 
         use std::fs;
         fs::write("/tmp/definitions",format!("{:#?}", builder.definitions)).expect("Unable to write file");
 
-        Cache {
-            file: ns.files[ns.top_file_no()].clone(),
-            hovers: Lapper::new(builder.hovers),
-            references: Lapper::new(builder.references),
-            definitions: builder.definitions,
-        }
+        let caches = ns.files.iter().enumerate().map(|(i, f)| Cache {
+            file: f.clone(),
+            hovers: Lapper::new(builder.hovers.iter().filter(|h| h.0 == i).map(|(_, i)| i.clone()).collect()),
+            references: Lapper::new(builder.references.iter().filter(|h| h.0 == i).map(|(_, i)| i.clone()).collect()),
+            // definitions: builder.definitions.clone(),
+        })
+        .collect();
+
+        // Cache {
+        //     file: ns.files[ns.top_file_no()].clone(),
+        //     hovers: Lapper::new(builder.hovers),
+        //     references: Lapper::new(builder.references),
+        //     definitions: builder.definitions,
+        // }
+        (caches, builder.definitions)
     }
 
     /// Render the type with struct/enum fields expanded
@@ -1339,6 +1483,9 @@ impl LanguageServer for SolangServer {
         if let Ok(path) = uri.to_file_path() {
             let files = self.files.lock().await;
             if let Some(cache) = files.get(&path) {
+                data_file
+                    .write(format!("definition continuation! found file in files\n").as_bytes())
+                    .expect("write failed");
                 let f = &cache.file;
                 let offset = f.get_offset(params.text_document_position_params.position.line as _, params.text_document_position_params.position.character as _);
                 data_file
@@ -1358,7 +1505,8 @@ impl LanguageServer for SolangServer {
                     data_file
                         .write(format!("found definition index from hover: {:#?}\n", di).as_bytes())
                         .expect("write failed");
-                    if let Some((path, range)) = cache.definitions.get(di) {
+                    let definitions = self.definitions.lock().await;
+                    if let Some((path, range)) = definitions.get(di) {
                         data_file
                             .write(format!("found corresponding definition index in the cache: {:#?} - {:#?}\n", path, range).as_bytes())
                             .expect("write failed");
@@ -1390,4 +1538,12 @@ fn loc_to_range(loc: &pt::Loc, file: &ast::File) -> Range {
     let end = Position::new(line as u32, column as u32);
 
     Range::new(start, end)
+}
+
+fn get_file_no_from_loc(loc: &pt::Loc) -> Option<usize> {
+    if let pt::Loc::File(fno, _, _) = loc {
+        Some(*fno)
+    } else {
+        None
+    }
 }
