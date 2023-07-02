@@ -45,8 +45,9 @@ pub struct SolangServer {
     target: Target,
     importpaths: Vec<PathBuf>,
     importmaps: Vec<(String, PathBuf)>,
-    files: Mutex<HashMap<PathBuf, Cache>>,
-    definitions: Mutex<Definitions>,
+    // TODO change
+    locked: Mutex<(HashMap<PathBuf, Cache>, Definitions)>,
+    // definitions: Mutex<Definitions>,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -74,10 +75,11 @@ pub async fn start_server(language_args: &LanguageServerCommand) -> ! {
     let (service, socket) = LspService::new(|client| SolangServer {
         client,
         target,
-        files: Mutex::new(HashMap::new()),
+        // files: Mutex::new(HashMap::new()),
         importpaths,
         importmaps,
-        definitions: Mutex::new(HashMap::new()),
+        // definitions: Mutex::new(HashMap::new()),
+        locked: Mutex::new((HashMap::new(), HashMap::new())),
     });
 
     Server::new(stdin, stdout, socket).serve(service).await;
@@ -181,16 +183,17 @@ impl SolangServer {
                 .append(true)
                 .open("/tmp/caches")
                 .expect("cannot open file");
-            let mut files = self.files.lock().await;
+            let mut locked = self.locked.lock().await;
             for (f, c) in ns.files.iter().zip(caches.into_iter()) {
                 // TODO
                 let fname = dir.join(f.file_name());
                 data_file
                     .write(format!("{:#?}\n", fname).as_bytes())
                     .expect("write failed");
-                files.insert(fname, c);
+                locked.0.insert(fname, c);
             }
-            *self.definitions.lock().await = definitions;
+            // *self.definitions.lock().await = definitions;
+            locked.1 = definitions;
             data_file
                 .write(format!("=======================================\n").as_bytes())
                 .expect("write failed");
@@ -272,7 +275,7 @@ impl<'a> Builder<'a> {
                         val,
                     },
                 ));
-                self.definitions.insert(DefinitionIndex::Variable(*var_no), (self.ns.files[loc.file_no()].path.clone(), loc_to_range(loc, &self.ns.files[loc.file_no()])));
+                self.definitions.insert(DefinitionIndex::Variable(*var_no), (self.ns.files[param.loc.file_no()].path.clone(), loc_to_range(&param.loc, &self.ns.files[param.loc.file_no()])));
             }
             ast::Statement::If(_, _, expr, stat1, stat2) => {
                 self.expression(expr, symtab);
@@ -1351,6 +1354,8 @@ impl LanguageServer for SolangServer {
                     file_operations: None,
                 }),
                 definition_provider: Some(OneOf::Left(true)),
+                references_provider: Some(OneOf::Left(true)),
+                rename_provider: Some(OneOf::Left(true)),
                 ..ServerCapabilities::default()
             },
         })
@@ -1419,7 +1424,7 @@ impl LanguageServer for SolangServer {
         let uri = params.text_document.uri;
 
         if let Ok(path) = uri.to_file_path() {
-            self.files.lock().await.remove(&path);
+            self.locked.lock().await.0.remove(&path);
         }
         
         self.client.publish_diagnostics(uri, vec![], None).await;
@@ -1439,7 +1444,7 @@ impl LanguageServer for SolangServer {
         let uri = txtdoc.uri;
 
         if let Ok(path) = uri.to_file_path() {
-            let files = self.files.lock().await;
+            let files = &self.locked.lock().await.0;
             if let Some(cache) = files.get(&path) {
                 let offset = cache
                     .file
@@ -1481,7 +1486,8 @@ impl LanguageServer for SolangServer {
         let uri = params.text_document_position_params.text_document.uri;
 
         if let Ok(path) = uri.to_file_path() {
-            let files = self.files.lock().await;
+            let locked = &self.locked.lock().await;
+            let files = &locked.0;
             if let Some(cache) = files.get(&path) {
                 data_file
                     .write(format!("definition continuation! found file in files\n").as_bytes())
@@ -1505,7 +1511,7 @@ impl LanguageServer for SolangServer {
                     data_file
                         .write(format!("found definition index from hover: {:#?}\n", di).as_bytes())
                         .expect("write failed");
-                    let definitions = self.definitions.lock().await;
+                    let definitions = &locked.1;
                     if let Some((path, range)) = definitions.get(di) {
                         data_file
                             .write(format!("found corresponding definition index in the cache: {:#?} - {:#?}\n", path, range).as_bytes())
@@ -1528,6 +1534,102 @@ impl LanguageServer for SolangServer {
         }
         Ok(None)
     }
+
+    async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
+        let uri = params.text_document_position.text_document.uri;
+        if let Ok(path) = uri.to_file_path() {
+            let locked = self.locked.lock().await;
+            let files = &locked.0;
+            if let Some(cache) = files.get(&path) {
+                let f = &cache.file;
+                let offset = f.get_offset(params.text_document_position.position.line as _, params.text_document_position.position.character as _);
+                if let Some(reference) = cache
+                    .references
+                    .find(offset, offset)
+                    .min_by(|a, b| (a.stop - a.start).cmp(&(b.stop - b.start)))
+                {
+                    let di = &reference.val;
+                    let locations = files
+                        .iter()
+                        .flat_map(|(p, cache)| {
+                            let uri =  Url::from_file_path(p).unwrap();
+                            cache
+                                .references
+                                .iter()
+                                .filter(|r| r.val == *di)
+                                .map(move |r| Location {
+                                    uri: uri.clone(),
+                                    range: get_range(r.start, r.stop, &cache.file),
+                                })
+                            }
+                        );
+                    let mut locations: Vec<_> = locations.collect();
+                    if params.context.include_declaration {
+                        let definitions = &locked.1;
+                        if let Some((path, r)) = definitions.get(di) {
+                            let uri = Url::from_file_path(path).unwrap();
+                            locations.push(Location {
+                                uri,
+                                range: *r,
+                            });
+                        }
+                    }
+                    return Ok(Some(locations));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
+        let uri = params.text_document_position.text_document.uri;
+        let new_name = params.new_name;
+        if let Ok(path) = uri.to_file_path() {
+            let locked = self.locked.lock().await;
+            let files = &locked.0;
+            if let Some(cache) = files.get(&path) {
+                let f = &cache.file;
+                let offset = f.get_offset(params.text_document_position.position.line as _, params.text_document_position.position.character as _);
+                if let Some(reference) = cache
+                    .references
+                    .find(offset, offset)
+                    .min_by(|a, b| (a.stop - a.start).cmp(&(b.stop - b.start)))
+                {
+                    let mut ws = HashMap::new();
+                    let di = &reference.val;
+
+                    for (path, cache) in files {
+                        let uri =  Url::from_file_path(path).unwrap();
+                        let text_edits: Vec<_> = cache
+                            .references
+                            .iter()
+                            .filter(|r| r.val == *di)
+                            .map(|r| TextEdit {
+                                range: get_range(r.start, r.stop, &cache.file),
+                                new_text: new_name.clone(),
+                            })
+                            .collect();
+                        ws.insert(uri, text_edits);
+                    }
+                    let definitions = &locked.1;
+                    if let Some((path, r)) = definitions.get(di) {
+                        let uri = Url::from_file_path(path).unwrap();
+                        let te = TextEdit {
+                            range: *r,
+                            new_text: new_name.clone(),
+                        };
+                        if let Some(vte) = ws.get_mut(&uri) {
+                            vte.push(te);
+                        } else {
+                            ws.insert(uri, vec![te]);
+                        }
+                    }
+                    return Ok(Some(WorkspaceEdit::new(ws)));
+                }
+            }
+        };
+        Ok(None)
+    }   
 }
 
 /// Calculate the line and column from the Loc offset received from the parser
@@ -1535,6 +1637,15 @@ fn loc_to_range(loc: &pt::Loc, file: &ast::File) -> Range {
     let (line, column) = file.offset_to_line_column(loc.start());
     let start = Position::new(line as u32, column as u32);
     let (line, column) = file.offset_to_line_column(loc.end());
+    let end = Position::new(line as u32, column as u32);
+
+    Range::new(start, end)
+}
+
+fn get_range(start: usize, end: usize, file: &ast::File) -> Range {
+    let (line, column) = file.offset_to_line_column(start);
+    let start = Position::new(line as u32, column as u32);
+    let (line, column) = file.offset_to_line_column(end);
     let end = Position::new(line as u32, column as u32);
 
     Range::new(start, end)
