@@ -157,7 +157,7 @@ fn idl_instructions(
         } else if func.mangled_name_contracts.contains(&contract_no) {
             func.mangled_name.clone()
         } else {
-            func.name.clone()
+            func.name.name.clone()
         };
 
         let accounts = func

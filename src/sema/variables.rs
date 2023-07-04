@@ -464,7 +464,7 @@ pub fn variable_decl<'a>(
 
             let mut func = Function::new(
                 def.name.as_ref().unwrap().loc,
-                def.name.as_ref().unwrap().name.to_owned(),
+                def.name.clone().unwrap(),
                 Some(contract_no),
                 Vec::new(),
                 pt::FunctionTy::Function,

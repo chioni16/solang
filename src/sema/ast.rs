@@ -12,7 +12,7 @@ use num_bigint::BigInt;
 use num_rational::BigRational;
 use once_cell::unsync::OnceCell;
 pub use solang_parser::diagnostics::*;
-use solang_parser::pt;
+use solang_parser::pt::{self, Identifier};
 use solang_parser::pt::{CodeLocation, FunctionTy, OptionalCodeLocation};
 use std::cell::RefCell;
 use std::{
@@ -216,6 +216,7 @@ impl fmt::Display for StructDecl {
     }
 }
 
+#[derive(Debug)]
 pub struct EnumDecl {
     pub tags: Vec<Tag>,
     pub name: String,
@@ -298,11 +299,12 @@ impl fmt::Display for Mutability {
     }
 }
 
+#[derive(Debug)]
 pub struct Function {
     pub tags: Vec<Tag>,
     /// The location of the prototype (not body)
     pub loc: pt::Loc,
-    pub name: String,
+    pub name: Identifier,
     pub contract_no: Option<usize>,
     pub ty: pt::FunctionTy,
     pub signature: String,
@@ -349,6 +351,7 @@ pub struct SolanaAccount {
     pub generated: bool,
 }
 
+#[derive(Debug)]
 pub enum ConstructorAnnotation {
     Seed(Expression),
     Payer(pt::Loc, String),
@@ -392,7 +395,7 @@ impl FunctionAttributes for Function {
 impl Function {
     pub fn new(
         loc: pt::Loc,
-        name: String,
+        name: Identifier,
         contract_no: Option<usize>,
         tags: Vec<Tag>,
         ty: pt::FunctionTy,
@@ -405,7 +408,7 @@ impl Function {
         let signature = match ty {
             pt::FunctionTy::Fallback => String::from("@fallback"),
             pt::FunctionTy::Receive => String::from("@receive"),
-            _ => ns.signature(&name, &params),
+            _ => ns.signature(&name.name, &params),
         };
 
         let mutability = match mutability {
@@ -463,7 +466,7 @@ impl Function {
                     let discriminator_image = if self.mangled_name_contracts.contains(contract_no) {
                         &self.mangled_name
                     } else {
-                        &self.name
+                        &self.name.name
                     };
                     discriminator("global", discriminator_image.as_str())
                 }
@@ -573,6 +576,7 @@ impl fmt::Display for UserTypeDecl {
     }
 }
 
+#[derive(Debug)]
 pub struct Variable {
     pub tags: Vec<Tag>,
     pub name: String,
@@ -586,7 +590,7 @@ pub struct Variable {
     pub read: bool,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Symbol {
     Enum(pt::Loc, usize),
     Function(Vec<(pt::Loc, usize)>),
@@ -657,6 +661,7 @@ pub struct File {
 }
 
 /// When resolving a Solidity file, this holds all the resolved items
+#[derive(Debug)]
 pub struct Namespace {
     pub target: Target,
     pub files: Vec<File>,
@@ -693,6 +698,7 @@ pub struct Namespace {
     pub hover_overrides: HashMap<pt::Loc, String>,
 }
 
+#[derive(Debug)]
 pub struct Layout {
     pub slot: BigInt,
     pub contract_no: usize,
@@ -700,30 +706,35 @@ pub struct Layout {
     pub ty: Type,
 }
 
+#[derive(Debug)]
 pub struct Base {
     pub loc: pt::Loc,
     pub contract_no: usize,
     pub constructor: Option<(usize, Vec<Expression>)>,
 }
 
+#[derive(Debug)]
 pub struct Using {
     pub list: UsingList,
     pub ty: Option<Type>,
     pub file_no: Option<usize>,
 }
 
+#[derive(Debug)]
 pub enum UsingList {
     Library(usize),
     Functions(Vec<UsingFunction>),
 }
 
 /// Using binding for a function, optionally for an operator
+#[derive(Debug)]
 pub struct UsingFunction {
     pub loc: pt::Loc,
     pub function_no: usize,
     pub oper: Option<pt::UserDefinedOperator>,
 }
 
+#[derive(Debug)]
 pub struct Contract {
     pub tags: Vec<Tag>,
     pub loc: pt::Loc,

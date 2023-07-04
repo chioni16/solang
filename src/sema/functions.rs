@@ -11,7 +11,7 @@ use super::{
 use crate::sema::ast::ParameterAnnotation;
 use crate::sema::function_annotation::unexpected_parameter_annotation;
 use crate::Target;
-use solang_parser::pt::FunctionTy;
+use solang_parser::pt::{FunctionTy, Identifier};
 use solang_parser::{
     doccomment::DocComment,
     pt,
@@ -429,14 +429,16 @@ pub fn contract_function(
 
     let name = func
         .name
-        .as_ref()
-        .map(|s| s.name.as_str())
+        // .as_ref()
+        // .map(|s| s.name.as_str())
+        .clone()
         .unwrap_or_else(|| {
-            if ns.target.is_substrate() && func.ty == pt::FunctionTy::Constructor {
+            let name = if ns.target.is_substrate() && func.ty == pt::FunctionTy::Constructor {
                 "new"
             } else {
                 ""
-            }
+            };
+            Identifier { name: name.to_owned(), loc: func.loc }
         })
         .to_owned();
 
@@ -772,7 +774,7 @@ pub fn function(
     }
 
     let name = match &func.name {
-        Some(s) => s.name.to_owned(),
+        Some(s) => s.clone(),
         None => {
             ns.diagnostics.push(Diagnostic::error(
                 func.loc,
@@ -1107,7 +1109,7 @@ fn signatures() {
 
     let fdecl = Function::new(
         pt::Loc::Implicit,
-        "foo".to_owned(),
+        Identifier{name: "foo".to_owned(), loc: pt::Loc::Implicit },
         None,
         vec![],
         pt::FunctionTy::Function,

@@ -1281,7 +1281,7 @@ impl<'a> TargetRuntime<'a> for SolanaTarget {
         first_arg_type: BasicTypeEnum,
         ns: &ast::Namespace,
     ) -> Option<BasicValueEnum<'a>> {
-        if builtin_func.name == "create_program_address" {
+        if builtin_func.name.name == "create_program_address" {
             let func = binary
                 .module
                 .get_function("sol_create_program_address")
@@ -1315,7 +1315,7 @@ impl<'a> TargetRuntime<'a> for SolanaTarget {
                 .left()
                 .unwrap();
             Some(ret)
-        } else if builtin_func.name == "try_find_program_address" {
+        } else if builtin_func.name.name == "try_find_program_address" {
             let func = binary
                 .module
                 .get_function("sol_try_find_program_address")

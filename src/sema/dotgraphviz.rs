@@ -163,7 +163,7 @@ impl Dot {
         }
 
         let func_node = self.add_node(
-            Node::new(&func.name, labels),
+            Node::new(&func.name.name, labels),
             Some(parent),
             Some(format!("{}", func.ty)),
         );

@@ -89,7 +89,7 @@ pub(super) fn member_access(
                 for function_no in ns.contracts[call_contract_no].all_functions.keys() {
                     let func = &ns.functions[*function_no];
 
-                    if func.name != id.name || func.ty != pt::FunctionTy::Function {
+                    if func.name.name != id.name || func.ty != pt::FunctionTy::Function {
                         continue;
                     }
 
@@ -358,7 +358,7 @@ pub(super) fn member_access(
             for function_no in ns.contracts[ref_contract_no].all_functions.keys() {
                 let func = &ns.functions[*function_no];
 
-                if func.name != id.name || func.ty != pt::FunctionTy::Function || !func.is_public()
+                if func.name.name != id.name || func.ty != pt::FunctionTy::Function || !func.is_public()
                 {
                     continue;
                 }

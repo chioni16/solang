@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use num_bigint::BigInt;
+use solang_parser::pt::Identifier;
 
 use super::encoding::{abi_decode, abi_encode};
 use super::expression::{
@@ -1533,7 +1534,7 @@ impl Namespace {
     pub fn default_constructor(&self, contract_no: usize) -> Function {
         let mut func = Function::new(
             Codegen,
-            "".to_owned(),
+            Identifier{ name: "".to_owned(), loc: Codegen },
             Some(contract_no),
             vec![],
             pt::FunctionTy::Constructor,

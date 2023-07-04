@@ -1492,7 +1492,7 @@ impl Namespace {
 
         let mut func = Function::new(
             pt::Loc::Builtin,
-            "create_program_address".to_string(),
+            Identifier{ name: "create_program_address".to_string(), loc: pt::Loc::Builtin }, 
             None,
             Vec::new(),
             pt::FunctionTy::Function,
@@ -1543,7 +1543,7 @@ impl Namespace {
 
         let func_no = self.functions.len();
         let id = Identifier {
-            name: func.name.to_owned(),
+            name: func.name.name.to_owned(),
             loc: pt::Loc::Builtin,
         };
 
@@ -1558,7 +1558,7 @@ impl Namespace {
 
         let mut func = Function::new(
             pt::Loc::Builtin,
-            "try_find_program_address".to_string(),
+            Identifier{ name: "try_find_program_address".to_string(), loc: pt::Loc::Builtin },
             None,
             Vec::new(),
             pt::FunctionTy::Function,
@@ -1622,7 +1622,7 @@ impl Namespace {
 
         let func_no = self.functions.len();
         let id = Identifier {
-            name: func.name.to_owned(),
+            name: func.name.name.to_owned(),
             loc: pt::Loc::Builtin,
         };
 
@@ -1671,7 +1671,7 @@ impl Namespace {
         // Chain extensions
         let mut func = Function::new(
             loc,
-            "chain_extension".to_string(),
+            Identifier { name: "chain_extension".to_string(), loc },
             None,
             Vec::new(),
             pt::FunctionTy::Function,
@@ -1730,7 +1730,7 @@ impl Namespace {
 
         func.has_body = true;
         let func_no = self.functions.len();
-        let id = identifier(&func.name);
+        let id = identifier(&func.name.name);
         self.functions.push(func);
 
         assert!(self.add_symbol(file_no, None, &id, Symbol::Function(vec![(loc, func_no)])));
@@ -1738,7 +1738,7 @@ impl Namespace {
         // is_contract API
         let mut func = Function::new(
             loc,
-            "is_contract".to_string(),
+            Identifier{ name: "is_contract".to_string(), loc },
             None,
             Vec::new(),
             pt::FunctionTy::Function,
@@ -1771,7 +1771,7 @@ impl Namespace {
 
         func.has_body = true;
         let func_no = self.functions.len();
-        let id = identifier(&func.name);
+        let id = identifier(&func.name.name);
         self.functions.push(func);
 
         assert!(self.add_symbol(file_no, None, &id, Symbol::Function(vec![(loc, func_no)])));

@@ -824,7 +824,8 @@ impl<'a> Builder<'a> {
                 args,
                 ..
             } => {
-                if let ast::Expression::InternalFunction { function_no, .. } = function.as_ref() {
+                let cloc = loc;
+                if let ast::Expression::InternalFunction { function_no, loc, .. } = function.as_ref() {
                     let fnc = &self.ns.functions[*function_no];
                     let msg_tg = render(&fnc.tags[..]);
 
@@ -852,10 +853,10 @@ impl<'a> Builder<'a> {
 
                     val = format!("{val})");
                     self.hovers.push((
-                        get_file_no_from_loc(loc).unwrap(),
+                        get_file_no_from_loc(cloc).unwrap(),
                         HoverEntry {
-                            start: loc.start(),
-                            stop: loc.end(),
+                            start: cloc.start(),
+                            stop: cloc.end(),
                             val,
                         },
                     ));
@@ -880,9 +881,11 @@ impl<'a> Builder<'a> {
                 call_args,
                 ..
             } => {
+                let cloc = loc;
                 if let ast::Expression::ExternalFunction {
                     function_no,
                     address,
+                    loc,
                     ..
                 } = function.as_ref()
                 {
@@ -913,10 +916,10 @@ impl<'a> Builder<'a> {
 
                     val = format!("{val})");
                     self.hovers.push((
-                        get_file_no_from_loc(loc).unwrap(),
+                        get_file_no_from_loc(cloc).unwrap(),
                         HoverEntry {
-                        start: loc.start(),
-                        stop: loc.end(),
+                        start: cloc.start(),
+                        stop: cloc.end(),
                         val,
                         },
                     ));
@@ -1162,7 +1165,7 @@ impl<'a> Builder<'a> {
                 builder.statement(stmt, &func.symtable);
             }
 
-            builder.definitions.insert(DefinitionIndex::Function(i), (ns.files[func.loc.file_no()].path.clone(), loc_to_range(&func.loc, &ns.files[func.loc.file_no()])));
+            builder.definitions.insert(DefinitionIndex::Function(i), (ns.files[func.name.loc.file_no()].path.clone(), loc_to_range(&func.name.loc, &ns.files[func.name.loc.file_no()])));
         }
 
         for constant in &builder.ns.constants {
