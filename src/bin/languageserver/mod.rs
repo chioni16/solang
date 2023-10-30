@@ -303,13 +303,6 @@ impl SolangServer {
 
             let res = self.client.publish_diagnostics(uri, diags, None);
 
-            use std::fs::File;
-            use std::io::Write;
-            let mut data_file = File::create("/tmp/ns").expect("creation failed");
-            data_file
-                .write(format!("{:#?}", ns).as_bytes())
-                .expect("write failed");
-
             let (file_caches, global_cache) = Builder::new(&ns).build();
 
             let mut files = self.files.lock().await;
@@ -1352,8 +1345,7 @@ impl<'a> Builder<'a> {
                 field_id,
             ),
         };
-        self.definitions
-            .insert(di.clone(), loc_to_range(loc, file));
+        self.definitions.insert(di.clone(), loc_to_range(loc, file));
         if let Some(dt) = get_type_definition(&field.ty) {
             self.types.insert(di, dt.into());
         }

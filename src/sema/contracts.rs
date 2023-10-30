@@ -496,10 +496,7 @@ fn check_inheritance(contract_no: usize, ns: &mut ast::Namespace) {
                     if Some(base_contract_no) == func_prev.contract_no {
                         diagnostics.push(ast::Diagnostic::error_with_note(
                             cur.loc,
-                            format!(
-                                "function '{}' overrides function in same contract",
-                                cur.id
-                            ),
+                            format!("function '{}' overrides function in same contract", cur.id),
                             func_prev.loc,
                             format!("previous definition of '{}'", func_prev.id),
                         ));
@@ -667,10 +664,7 @@ fn check_inheritance(contract_no: usize, ns: &mut ast::Namespace) {
 
         diagnostics.push(ast::Diagnostic::error_with_notes(
             func.loc,
-            format!(
-                "function '{}' with this signature already defined",
-                func.id
-            ),
+            format!("function '{}' with this signature already defined", func.id),
             notes,
         ));
     }

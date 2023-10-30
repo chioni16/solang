@@ -621,10 +621,7 @@ pub(super) fn named_struct_literal(
                 None => {
                     diagnostics.push(Diagnostic::error(
                         a.name.loc,
-                        format!(
-                            "struct '{}' has no field '{}'",
-                            struct_def.id, a.name.name,
-                        ),
+                        format!("struct '{}' has no field '{}'", struct_def.id, a.name.name,),
                     ));
                     return Err(());
                 }
