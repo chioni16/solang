@@ -241,7 +241,7 @@ pub fn generate_docs(outdir: &OsString, files: &[ast::Namespace], verbose: bool)
             }
 
             top.enums.push(EnumDecl {
-                name: &enum_decl.name,
+                name: &enum_decl.id.name,
                 contract: enum_decl.contract.as_deref(),
                 title: get_tag("title", &enum_decl.tags),
                 notice: get_tag("notice", &enum_decl.tags),

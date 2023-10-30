@@ -2436,9 +2436,9 @@ impl Namespace {
                 if let Some(contract) = &decl.contract {
                     labels.insert(0, format!("contract: {contract}"));
                 }
-                labels.insert(0, format!("name: {}", decl.name));
+                labels.insert(0, format!("name: {}", decl.id));
 
-                let e = Node::new(&decl.name, labels);
+                let e = Node::new(&decl.id.name, labels);
 
                 let node = dot.add_node(e, Some(enums), None);
 

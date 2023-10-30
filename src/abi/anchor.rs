@@ -357,10 +357,10 @@ impl TypeManager<'_> {
 
         let docs = idl_docs(&def.tags);
 
-        let name = self.unique_custom_type_name(&def.name, &def.contract);
+        let name = self.unique_custom_type_name(&def.id.name, &def.contract);
         self.added_names.insert(
             name.clone(),
-            (self.types.len(), def.contract.clone(), def.name.clone()),
+            (self.types.len(), def.contract.clone(), def.id.name.clone()),
         );
 
         let variants = def
@@ -431,7 +431,7 @@ impl TypeManager<'_> {
             Type::Bytes(dim) => IdlType::Array(Box::new(IdlType::U8), *dim as usize),
             Type::Enum(enum_no) => {
                 self.add_enum_definition(*enum_no, ast_type);
-                IdlType::Defined(self.namespace.enums[*enum_no].name.clone())
+                IdlType::Defined(self.namespace.enums[*enum_no].id.name.clone())
             }
             Type::ExternalFunction { .. } => {
                 self.convert(&Type::Struct(StructType::ExternalFunction))

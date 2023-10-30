@@ -215,7 +215,7 @@ fn resolve_ast(ty: &ast::Type, ns: &ast::Namespace, registry: &mut PortableRegis
                 })
                 .collect::<Vec<_>>();
             let variant = TypeDef::Variant(TypeDefVariant::new(variants));
-            let path = path!(&decl.name);
+            let path = path!(&decl.id);
             let ty = Type::new(path, vec![], variant, Default::default());
             registry.register_type(ty)
         }

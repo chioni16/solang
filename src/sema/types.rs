@@ -1073,7 +1073,7 @@ fn enum_decl(
 
     let decl = EnumDecl {
         tags,
-        name: enum_.name.as_ref().unwrap().name.to_string(),
+        id: enum_.name.clone().unwrap(),
         loc: enum_.loc,
         contract: match contract_no {
             Some(c) => Some(ns.contracts[c].id.name.to_owned()),

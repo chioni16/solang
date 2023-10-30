@@ -220,7 +220,7 @@ impl fmt::Display for StructDecl {
 #[derive(Debug)]
 pub struct EnumDecl {
     pub tags: Vec<Tag>,
-    pub name: String,
+    pub id: Identifier,
     pub contract: Option<String>,
     pub loc: pt::Loc,
     pub ty: Type,
@@ -232,8 +232,8 @@ impl fmt::Display for EnumDecl {
     /// inside or outside a contract.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.contract {
-            Some(c) => write!(f, "{}.{}", c, self.name),
-            None => write!(f, "{}", self.name),
+            Some(c) => write!(f, "{}.{}", c, self.id),
+            None => write!(f, "{}", self.id),
         }
     }
 }

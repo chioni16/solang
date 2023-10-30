@@ -1373,7 +1373,7 @@ impl<'a> Builder<'a> {
                         stop: loc.exclusive_end(),
                         val: make_code_block(format!(
                             "enum {}.{} {}",
-                            enum_decl.name, nam, discriminant
+                            enum_decl.id, nam, discriminant
                         )),
                     },
                 ));
@@ -1388,13 +1388,13 @@ impl<'a> Builder<'a> {
                 self.types.insert(di, dt.into());
             }
 
-            let file_no = enum_decl.loc.file_no();
+            let file_no = enum_decl.id.loc.file_no();
             let file = &self.ns.files[file_no];
             self.hovers.push((
                 file_no,
                 HoverEntry {
-                    start: enum_decl.loc.start(),
-                    stop: enum_decl.loc.start() + enum_decl.name.len(),
+                    start: enum_decl.id.loc.start(),
+                    stop: enum_decl.id.loc.exclusive_end(),
                     val: render(&enum_decl.tags[..]),
                 },
             ));
@@ -1403,7 +1403,7 @@ impl<'a> Builder<'a> {
                     def_path: file.path.clone(),
                     def_type: DefinitionType::Enum(ei),
                 },
-                loc_to_range(&enum_decl.loc, file),
+                loc_to_range(&enum_decl.id.loc, file),
             );
         }
 
