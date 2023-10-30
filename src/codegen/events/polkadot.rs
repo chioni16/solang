@@ -68,7 +68,7 @@ impl EventEmitter for PolkadotEventEmitter<'_> {
         // This is static and can be calculated at compile time.
         if !event.anonymous {
             // First byte is 0 because there is no prefix for the event topic
-            let encoded = format!("\0{}::{}", contract_name, &event.name);
+            let encoded = format!("\0{}::{}", contract_name, &event.id);
             topics.push(Expression::AllocDynamicBytes {
                 loc,
                 ty: Type::Slice(Type::Uint(8).into()),
@@ -83,14 +83,9 @@ impl EventEmitter for PolkadotEventEmitter<'_> {
             .iter()
             .filter(|field| field.indexed)
             .map(|field| {
-                format!(
-                    "{}::{}::{}",
-                    contract_name,
-                    &event.name,
-                    &field.name_as_str()
-                )
-                .into_bytes()
-                .encode()
+                format!("{}::{}::{}", contract_name, &event.id, &field.name_as_str())
+                    .into_bytes()
+                    .encode()
             })
             .collect();
 

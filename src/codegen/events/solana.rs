@@ -29,7 +29,7 @@ impl EventEmitter for SolanaEventEmitter<'_> {
         vartab: &mut Vartable,
         opt: &Options,
     ) {
-        let discriminator_image = format!("event:{}", self.ns.events[self.event_no].name);
+        let discriminator_image = format!("event:{}", self.ns.events[self.event_no].id);
         let mut hasher = Sha256::new();
         hasher.update(discriminator_image);
         let result = hasher.finalize();

@@ -129,7 +129,7 @@ pub fn resolve_typenames<'a>(
 
                 ns.events.push(EventDecl {
                     tags: Vec::new(),
-                    name: def.name.as_ref().unwrap().name.to_owned(),
+                    id: def.name.clone().unwrap(),
                     loc: def.name.as_ref().unwrap().loc,
                     contract: None,
                     fields: Vec::new(),
@@ -411,7 +411,7 @@ pub fn resolve_fields(delay: ResolveFields, file_no: usize, ns: &mut Namespace) 
         let (tags, fields) = event_decl(event.pt, file_no, &event.comments, contract_no, ns);
 
         ns.events[event.event_no].signature =
-            ns.signature(&ns.events[event.event_no].name, &fields);
+            ns.signature(&ns.events[event.event_no].id.name, &fields);
         ns.events[event.event_no].fields = fields;
         ns.events[event.event_no].tags = tags;
     }
@@ -536,7 +536,7 @@ fn resolve_contract<'a>(
 
                 ns.events.push(EventDecl {
                     tags: Vec::new(),
-                    name: pt.name.as_ref().unwrap().name.to_owned(),
+                    id: pt.name.clone().unwrap(),
                     loc: pt.name.as_ref().unwrap().loc,
                     contract: Some(contract_no),
                     fields: Vec::new(),

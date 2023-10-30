@@ -303,6 +303,13 @@ impl SolangServer {
 
             let res = self.client.publish_diagnostics(uri, diags, None);
 
+            use std::fs::File;
+            use std::io::Write;
+            let mut data_file = File::create("/tmp/ns").expect("creation failed");
+            data_file
+                .write(format!("{:#?}", ns).as_bytes())
+                .expect("write failed");
+
             let (file_caches, global_cache) = Builder::new(&ns).build();
 
             let mut files = self.files.lock().await;
@@ -1671,13 +1678,13 @@ impl<'a> Builder<'a> {
                 self.field(ei, fi, field);
             }
 
-            let file_no = event.loc.file_no();
+            let file_no = event.id.loc.file_no();
             let file = &self.ns.files[file_no];
             self.hovers.push((
                 file_no,
                 HoverEntry {
-                    start: event.loc.start(),
-                    stop: event.loc.start() + event.name.len(),
+                    start: event.id.loc.start(),
+                    stop: event.id.loc.exclusive_end(),
                     val: render(&event.tags[..]),
                 },
             ));
@@ -1687,7 +1694,7 @@ impl<'a> Builder<'a> {
                     def_path: file.path.clone(),
                     def_type: DefinitionType::Event(ei),
                 },
-                loc_to_range(&event.loc, file),
+                loc_to_range(&event.id.loc, file),
             );
         }
 
