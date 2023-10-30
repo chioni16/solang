@@ -304,11 +304,11 @@ impl TypeManager<'_> {
             });
         }
 
-        let name = self.unique_custom_type_name(&def.name, &def.contract);
+        let name = self.unique_custom_type_name(&def.id.name, &def.contract);
 
         self.added_names.insert(
             name.clone(),
-            (self.types.len(), def.contract.clone(), def.name.clone()),
+            (self.types.len(), def.contract.clone(), def.id.name.clone()),
         );
 
         self.types.push(IdlTypeDefinition {
@@ -408,7 +408,7 @@ impl TypeManager<'_> {
             Type::Struct(struct_type) => {
                 let def = struct_type.definition(self.namespace);
                 self.add_struct_definition(def, ast_type);
-                IdlType::Defined(def.name.clone())
+                IdlType::Defined(def.id.name.clone())
             }
             Type::Array(ty, dims) => {
                 let mut idl_type = self.convert(ty);

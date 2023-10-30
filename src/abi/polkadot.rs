@@ -197,7 +197,7 @@ fn resolve_ast(ty: &ast::Type, ns: &ast::Namespace, registry: &mut PortableRegis
                 })
                 .collect::<Vec<Field<PortableForm>>>();
             let c = TypeDefComposite::new(fields);
-            let path = path!(&def.name);
+            let path = path!(&def.id);
             let ty = Type::new(path, vec![], TypeDef::Composite(c), Default::default());
             registry.register_type(ty)
         }

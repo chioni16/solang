@@ -2453,7 +2453,7 @@ impl Namespace {
             for decl in &self.structs {
                 if let pt::Loc::File(..) = &decl.loc {
                     let mut labels = vec![
-                        format!("name:{}", decl.name),
+                        format!("name:{}", decl.id),
                         self.loc_to_string(PathDisplay::FullPath, &decl.loc),
                     ];
 
@@ -2469,7 +2469,7 @@ impl Namespace {
                         ));
                     }
 
-                    let e = Node::new(&decl.name, labels);
+                    let e = Node::new(&decl.id.name, labels);
 
                     let node = dot.add_node(e, Some(structs), None);
 

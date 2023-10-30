@@ -302,7 +302,7 @@ pub(super) fn member_access(
                         id.loc,
                         format!(
                             "struct '{}' does not have a field called '{}'",
-                            str_ty.definition(ns).name,
+                            str_ty.definition(ns).id,
                             id.name
                         ),
                     ));

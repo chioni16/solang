@@ -156,7 +156,7 @@ pub enum StructType {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct StructDecl {
     pub tags: Vec<Tag>,
-    pub name: String,
+    pub id: Identifier,
     pub loc: pt::Loc,
     pub contract: Option<String>,
     pub fields: Vec<Parameter>,
@@ -211,8 +211,8 @@ impl fmt::Display for StructDecl {
     /// inside or outside a contract.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.contract {
-            Some(c) => write!(f, "{}.{}", c, self.name),
-            None => write!(f, "{}", self.name),
+            Some(c) => write!(f, "{}.{}", c, self.id),
+            None => write!(f, "{}", self.id),
         }
     }
 }

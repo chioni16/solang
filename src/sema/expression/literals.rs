@@ -474,7 +474,7 @@ pub(super) fn struct_literal(
             *loc,
             format!(
                 "builtin struct '{}' cannot be created using struct literal",
-                struct_def.name,
+                struct_def.id,
             ),
         ));
         Err(())
@@ -483,7 +483,7 @@ pub(super) fn struct_literal(
             *loc,
             format!(
                 "struct '{}' has {} fields, not {}",
-                struct_def.name,
+                struct_def.id,
                 struct_def.fields.len(),
                 args.len()
             ),
@@ -578,7 +578,7 @@ pub(super) fn named_struct_literal(
             *loc,
             format!(
                 "builtin struct '{}' cannot be created using struct literal",
-                struct_def.name,
+                struct_def.id,
             ),
         ));
         Err(())
@@ -587,7 +587,7 @@ pub(super) fn named_struct_literal(
             *loc,
             format!(
                 "struct '{}' has {} fields, not {}",
-                struct_def.name,
+                struct_def.id,
                 struct_def.fields.len(),
                 args.len()
             ),
@@ -623,7 +623,7 @@ pub(super) fn named_struct_literal(
                         a.name.loc,
                         format!(
                             "struct '{}' has no field '{}'",
-                            struct_def.name, a.name.name,
+                            struct_def.id, a.name.name,
                         ),
                     ));
                     return Err(());

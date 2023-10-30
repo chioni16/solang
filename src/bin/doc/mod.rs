@@ -216,7 +216,7 @@ pub fn generate_docs(outdir: &OsString, files: &[ast::Namespace], verbose: bool)
                 }
 
                 top.structs.push(StructDecl {
-                    name: &struct_decl.name,
+                    name: &struct_decl.id.name,
                     contract: struct_decl.contract.as_deref(),
                     title: get_tag("title", &struct_decl.tags),
                     notice: get_tag("notice", &struct_decl.tags),

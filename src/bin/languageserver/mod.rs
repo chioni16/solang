@@ -1408,18 +1408,18 @@ impl<'a> Builder<'a> {
         }
 
         for (si, struct_decl) in self.ns.structs.iter().enumerate() {
-            if let pt::Loc::File(_, start, _) = &struct_decl.loc {
+            if matches!(struct_decl.loc, pt::Loc::File(_, _, _)) {
                 for (fi, field) in struct_decl.fields.iter().enumerate() {
                     self.field(si, fi, field);
                 }
 
-                let file_no = struct_decl.loc.file_no();
+                let file_no = struct_decl.id.loc.file_no();
                 let file = &self.ns.files[file_no];
                 self.hovers.push((
                     file_no,
                     HoverEntry {
-                        start: *start,
-                        stop: start + struct_decl.name.len(),
+                        start: struct_decl.id.loc.start(),
+                        stop: struct_decl.id.loc.exclusive_end(),
                         val: render(&struct_decl.tags[..]),
                     },
                 ));
@@ -1428,7 +1428,7 @@ impl<'a> Builder<'a> {
                         def_path: file.path.clone(),
                         def_type: DefinitionType::Struct(si),
                     },
-                    loc_to_range(&struct_decl.loc, file),
+                    loc_to_range(&struct_decl.id.loc, file),
                 );
             }
         }

@@ -10,7 +10,7 @@ static BUILTIN_STRUCTS: Lazy<[StructDecl; 3]> = Lazy::new(|| {
             tags: Vec::new(),
             loc: pt::Loc::Builtin,
             contract: None,
-            name: "AccountInfo".to_string(),
+            id: pt::Identifier{name: "AccountInfo".to_string(), loc: pt::Loc::Builtin},
             fields: vec![
                 Parameter {
                     loc: pt::Loc::Builtin,
@@ -132,7 +132,7 @@ static BUILTIN_STRUCTS: Lazy<[StructDecl; 3]> = Lazy::new(|| {
             tags: Vec::new(),
             loc: pt::Loc::Builtin,
             contract: None,
-            name: "AccountMeta".to_string(),
+            id: pt::Identifier { name: "AccountMeta".to_string(), loc: pt::Loc::Builtin},
             fields: vec![
                 Parameter {
                     loc: pt::Loc::Builtin,
@@ -182,7 +182,7 @@ static BUILTIN_STRUCTS: Lazy<[StructDecl; 3]> = Lazy::new(|| {
         },
         StructDecl {
             tags: Vec::new(),
-            name: "ExternalFunction".to_string(),
+            id: pt::Identifier{ name: "ExternalFunction".to_string(), loc: pt::Loc::Builtin},
             loc: pt::Loc::Builtin,
             contract: None,
             fields: vec![
