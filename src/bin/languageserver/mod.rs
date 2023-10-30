@@ -1092,7 +1092,7 @@ impl<'a> Builder<'a> {
 
                 let contract = fnc.contract_no.map(|contract_no| format!("{}.", self.ns.contracts[contract_no].id)).unwrap_or_default();
 
-                let val = format!("{} {}{}({}) returns ({})\n", fnc.ty, contract, fnc.name, params, rets);
+                let val = format!("{} {}{}({}) returns ({})\n", fnc.ty, contract, fnc.id, params, rets);
 
                 self.hovers.push((
                     loc.file_no(),
@@ -1150,7 +1150,7 @@ impl<'a> Builder<'a> {
 
                 let contract = fnc.contract_no.map(|contract_no| format!("{}.", self.ns.contracts[contract_no].id)).unwrap_or_default();
 
-                let val = format!("{} {}{}({}) returns ({})\n", fnc.ty, contract, fnc.name, params, rets);
+                let val = format!("{} {}{}({}) returns ({})\n", fnc.ty, contract, fnc.id, params, rets);
 
                 self.hovers.push((
                     loc.file_no(),
@@ -1463,14 +1463,16 @@ impl<'a> Builder<'a> {
             }
 
             for (i, param) in func.params.iter().enumerate() {
+                let loc = param.id.as_ref().map(|id| &id.loc).unwrap_or(&param.loc);
                 self.hovers.push((
-                    param.loc.file_no(),
+                    loc.file_no(),
                     HoverEntry {
-                        start: param.loc.start(),
-                        stop: param.loc.exclusive_end(),
+                        start: loc.start(),
+                        stop: loc.exclusive_end(),
                         val: self.expanded_ty(&param.ty),
                     },
                 ));
+
                 if let Some(Some(var_no)) = func.symtable.arguments.get(i) {
                     if let Some(id) = &param.id {
                         let file_no = id.loc.file_no();
@@ -1486,13 +1488,14 @@ impl<'a> Builder<'a> {
                         }
                     }
                 }
-                if let Some(loc) = param.ty_loc {
+
+                if let Some(ty_loc) = param.ty_loc {
                     if let Some(dt) = get_type_definition(&param.ty) {
                         self.references.push((
-                            loc.file_no(),
+                            ty_loc.file_no(),
                             ReferenceEntry {
-                                start: loc.start(),
-                                stop: loc.exclusive_end(),
+                                start: ty_loc.start(),
+                                stop: ty_loc.exclusive_end(),
                                 val: dt.into(),
                             },
                         ));
@@ -1501,11 +1504,12 @@ impl<'a> Builder<'a> {
             }
 
             for (i, ret) in func.returns.iter().enumerate() {
+                let loc = ret.id.as_ref().map(|id| &id.loc).unwrap_or(&ret.loc);
                 self.hovers.push((
-                    ret.loc.file_no(),
+                    loc.file_no(),
                     HoverEntry {
-                        start: ret.loc.start(),
-                        stop: ret.loc.exclusive_end(),
+                        start: loc.start(),
+                        stop: loc.exclusive_end(),
                         val: self.expanded_ty(&ret.ty),
                     },
                 ));
@@ -1526,13 +1530,13 @@ impl<'a> Builder<'a> {
                     }
                 }
 
-                if let Some(loc) = ret.ty_loc {
+                if let Some(ty_loc) = ret.ty_loc {
                     if let Some(dt) = get_type_definition(&ret.ty) {
                         self.references.push((
-                            loc.file_no(),
+                            ty_loc.file_no(),
                             ReferenceEntry {
-                                start: loc.start(),
-                                stop: loc.exclusive_end(),
+                                start: ty_loc.start(),
+                                stop: ty_loc.exclusive_end(),
                                 val: dt.into(),
                             },
                         ));
@@ -1544,14 +1548,14 @@ impl<'a> Builder<'a> {
                 self.statement(stmt, &func.symtable);
             }
 
-            let file_no = func.loc.file_no();
+            let file_no = func.id.loc.file_no();
             let file = &self.ns.files[file_no];
             self.definitions.insert(
                 DefinitionIndex {
                     def_path: file.path.clone(),
                     def_type: DefinitionType::Function(i),
                 },
-                loc_to_range(&func.loc, file),
+                loc_to_range(&func.id.loc, file),
             );
         }
 

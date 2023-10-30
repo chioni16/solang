@@ -77,7 +77,7 @@ contract Test {
     let read1 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "read1")
+        .find(|f| f.id.name == "read1")
         .unwrap();
     assert_eq!(
         *read1.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -87,7 +87,7 @@ contract Test {
     let read2 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "read2")
+        .find(|f| f.id.name == "read2")
         .unwrap();
     assert_eq!(
         *read2.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -97,7 +97,7 @@ contract Test {
     let read3 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "read3")
+        .find(|f| f.id.name == "read3")
         .unwrap();
     assert_eq!(
         *read3.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -107,7 +107,7 @@ contract Test {
     let read4 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "read4")
+        .find(|f| f.id.name == "read4")
         .unwrap();
     assert_eq!(
         *read4.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -117,7 +117,7 @@ contract Test {
     let read5 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "read5")
+        .find(|f| f.id.name == "read5")
         .unwrap();
     assert_eq!(
         *read5.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -127,7 +127,7 @@ contract Test {
     let read6 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "read6")
+        .find(|f| f.id.name == "read6")
         .unwrap();
     assert_eq!(
         *read6.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -137,7 +137,7 @@ contract Test {
     let read7 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "read7")
+        .find(|f| f.id.name == "read7")
         .unwrap();
     assert_eq!(
         *read7.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -205,7 +205,7 @@ fn write_account() {
     let write1 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "write1")
+        .find(|f| f.id.name == "write1")
         .unwrap();
     assert_eq!(
         *write1.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -215,7 +215,7 @@ fn write_account() {
     let write2 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "write2")
+        .find(|f| f.id.name == "write2")
         .unwrap();
     assert_eq!(
         *write2.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -225,7 +225,7 @@ fn write_account() {
     let write3 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "write3")
+        .find(|f| f.id.name == "write3")
         .unwrap();
     assert_eq!(
         *write3.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -235,7 +235,7 @@ fn write_account() {
     let write4 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "write4")
+        .find(|f| f.id.name == "write4")
         .unwrap();
     assert_eq!(
         *write4.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -245,7 +245,7 @@ fn write_account() {
     let write5 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "write5")
+        .find(|f| f.id.name == "write5")
         .unwrap();
     assert_eq!(
         *write5.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -255,7 +255,7 @@ fn write_account() {
     let write6 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "write6")
+        .find(|f| f.id.name == "write6")
         .unwrap();
     assert_eq!(
         *write6.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -265,7 +265,7 @@ fn write_account() {
     let write6 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "write6")
+        .find(|f| f.id.name == "write6")
         .unwrap();
     assert_eq!(
         *write6.solana_accounts.borrow().get("dataAccount").unwrap(),
@@ -275,7 +275,7 @@ fn write_account() {
     let write7 = ns
         .functions
         .iter()
-        .find(|f| f.name.name == "write7")
+        .find(|f| f.id.name == "write7")
         .unwrap();
     assert_eq!(
         *write7.solana_accounts.borrow().get("dataAccount").unwrap(),

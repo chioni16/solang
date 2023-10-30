@@ -305,7 +305,7 @@ pub fn generate_docs(outdir: &OsString, files: &[ast::Namespace], verbose: bool)
                 }
 
                 Function {
-                    name: &func.name.name,
+                    name: &func.id.name,
                     ty: format!("{}", func.ty),
                     mutability: format!("{}", func.mutability),
                     base_contract,

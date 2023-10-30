@@ -129,7 +129,7 @@ impl Dot {
 
     fn add_function(&mut self, func: &Function, ns: &Namespace, parent: usize) {
         let mut labels = vec![
-            format!("{} {}", func.ty, func.name),
+            format!("{} {}", func.ty, func.id),
             ns.loc_to_string(PathDisplay::FullPath, &func.loc),
         ];
 
@@ -163,7 +163,7 @@ impl Dot {
         }
 
         let func_node = self.add_node(
-            Node::new(&func.name.name, labels),
+            Node::new(&func.id.name, labels),
             Some(parent),
             Some(format!("{}", func.ty)),
         );
@@ -1211,9 +1211,9 @@ impl Dot {
                 let func = &ns.functions[*function_no];
 
                 if let Some(contract_no) = func.contract_no {
-                    labels.insert(1, format!("{}.{}", ns.contracts[contract_no].id, func.name))
+                    labels.insert(1, format!("{}.{}", ns.contracts[contract_no].id, func.id))
                 } else {
-                    labels.insert(1, format!("free function {}", func.name))
+                    labels.insert(1, format!("free function {}", func.id))
                 }
 
                 if let Some(signature) = signature {
@@ -1240,7 +1240,7 @@ impl Dot {
                 let f = &ns.functions[*function_no];
 
                 if let Some(contract_no) = f.contract_no {
-                    labels.insert(1, format!("{}.{}", ns.contracts[contract_no].id, f.name))
+                    labels.insert(1, format!("{}.{}", ns.contracts[contract_no].id, f.id))
                 }
 
                 let node = self.add_node(
@@ -1410,7 +1410,7 @@ impl Dot {
                     ),
                     format!(
                         "function {} {}",
-                        user_func.name,
+                        user_func.id,
                         ns.loc_to_string(PathDisplay::FullPath, &user_func.loc)
                     ),
                 ];
@@ -2656,7 +2656,7 @@ impl Namespace {
 
                             let mut label = format!(
                                 "function {} {}",
-                                func.name,
+                                func.id,
                                 self.loc_to_string(PathDisplay::FullPath, &func.loc)
                             );
 

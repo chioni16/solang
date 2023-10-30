@@ -1557,7 +1557,7 @@ impl Namespace {
 
         let func_no = self.functions.len();
         let id = Identifier {
-            name: func.name.name.to_owned(),
+            name: func.id.name.to_owned(),
             loc: pt::Loc::Builtin,
         };
 
@@ -1639,7 +1639,7 @@ impl Namespace {
 
         let func_no = self.functions.len();
         let id = Identifier {
-            name: func.name.name.to_owned(),
+            name: func.id.name.to_owned(),
             loc: pt::Loc::Builtin,
         };
 
@@ -1825,7 +1825,7 @@ impl Namespace {
         ] {
             func.has_body = true;
             let func_no = self.functions.len();
-            let id = identifier(&func.name.name);
+            let id = identifier(&func.id.name);
             self.functions.push(func);
             assert!(self.add_symbol(file_no, None, &id, Symbol::Function(vec![(loc, func_no)])));
         }

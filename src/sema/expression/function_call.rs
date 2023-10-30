@@ -203,7 +203,7 @@ pub fn available_functions(
             ns.contracts[contract_no]
                 .all_functions
                 .keys()
-                .filter(|func_no| ns.functions[**func_no].name.name == name)
+                .filter(|func_no| ns.functions[**func_no].id.name == name)
                 .filter_map(|func_no| {
                     let is_abstract = ns.functions[*func_no].is_virtual
                         && !ns.contracts[contract_no].is_concrete();
@@ -234,7 +234,7 @@ pub fn available_super_functions(name: &str, contract_no: usize, ns: &Namespace)
                 .filter_map(|func_no| {
                     let func = &ns.functions[*func_no];
 
-                    if func.name.name == name && func.has_body {
+                    if func.id.name == name && func.has_body {
                         Some(*func_no)
                     } else {
                         None
@@ -412,7 +412,7 @@ pub(super) fn function_call_named_args(
                     "function cannot be called with named arguments as {unnamed_params} of its parameters do not have names"
                 ),
                 func.loc,
-                format!("definition of {}", func.name),
+                format!("definition of {}", func.id),
             ));
             matches = false;
         } else if params_len != args.len() {
@@ -2485,7 +2485,7 @@ fn resolve_internal_call(
             *loc,
             format!("cannot call private {}", func.ty),
             func.loc,
-            format!("declaration of {} '{}'", func.ty, func.name),
+            format!("declaration of {} '{}'", func.ty, func.id),
         ));
 
         return None;
@@ -2496,7 +2496,7 @@ fn resolve_internal_call(
                     *loc,
                     "accessor function cannot be called via an internal function call".to_string(),
                     func.loc,
-                    format!("declaration of '{}'", func.name),
+                    format!("declaration of '{}'", func.id),
                 ));
             } else {
                 errors.push(Diagnostic::error_with_note(
@@ -2504,7 +2504,7 @@ fn resolve_internal_call(
                     "functions declared external cannot be called via an internal function call"
                         .to_string(),
                     func.loc,
-                    format!("declaration of {} '{}'", func.ty, func.name),
+                    format!("declaration of {} '{}'", func.ty, func.id),
                 ));
             }
             return None;
@@ -2606,7 +2606,7 @@ fn contract_call_named_args(
                     "function cannot be called with named arguments as {unnamed_params} of its parameters do not have names"
                 ),
                 func.loc,
-                format!("definition of {}", func.name),
+                format!("definition of {}", func.id),
             ));
             matches = false;
         } else if params_len != args.len() {
@@ -2906,7 +2906,7 @@ fn preprocess_contract_call<T>(
     let mut name_matches: Vec<usize> = Vec::new();
 
     for function_no in ns.contracts[external_contract_no].all_functions.keys() {
-        if func.name != ns.functions[*function_no].name.name
+        if func.name != ns.functions[*function_no].id.name
             || ns.functions[*function_no].ty != pt::FunctionTy::Function
         {
             continue;

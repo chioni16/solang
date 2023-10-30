@@ -330,10 +330,10 @@ pub fn gen_project(contract_no: usize, ns: &ast::Namespace) -> InkProject {
             .collect::<Vec<MessageParamSpec<PortableForm>>>();
 
         ConstructorSpec::from_label(
-            if f.name.name.is_empty() {
+            if f.id.name.is_empty() {
                 "new"
             } else {
-                &f.name.name
+                &f.id.name
             }
             .into(),
         )
@@ -393,7 +393,7 @@ pub fn gen_project(contract_no: usize, ns: &ast::Namespace) -> InkProject {
 
                 let path = path!(
                     &ns.contracts[contract_no].id.name,
-                    &f.name.name,
+                    &f.id.name,
                     "return_type"
                 );
 
@@ -424,7 +424,7 @@ pub fn gen_project(contract_no: usize, ns: &ast::Namespace) -> InkProject {
         let label = if f.mangled_name_contracts.contains(&contract_no) {
             &f.mangled_name
         } else {
-            &f.name.name
+            &f.id.name
         };
         MessageSpec::from_label(label.into())
             .selector(f.selector(ns, &contract_no).try_into().unwrap())

@@ -320,7 +320,7 @@ pub struct Function {
     pub tags: Vec<Tag>,
     /// The location of the prototype (not body)
     pub loc: pt::Loc,
-    pub name: Identifier,
+    pub id: Identifier,
     pub contract_no: Option<usize>,
     pub ty: pt::FunctionTy,
     pub signature: String,
@@ -437,7 +437,7 @@ impl Function {
         Function {
             tags,
             loc,
-            name,
+            id: name,
             contract_no,
             ty,
             signature,
@@ -473,7 +473,7 @@ impl Function {
                     let discriminator_image = if self.mangled_name_contracts.contains(contract_no) {
                         &self.mangled_name
                     } else {
-                        &self.name.name
+                        &self.id.name
                     };
                     discriminator("global", discriminator_image.as_str())
                 }

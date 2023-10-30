@@ -155,7 +155,7 @@ fn idl_instructions(
         } else if func.mangled_name_contracts.contains(&contract_no) {
             func.mangled_name.clone()
         } else {
-            func.name.name.clone()
+            func.id.name.clone()
         };
 
         let accounts = func
@@ -240,7 +240,7 @@ impl TypeManager<'_> {
             name: name.clone(),
             docs: Some(vec![format!(
                 "Data structure to hold the multiple returns of function {}",
-                func.name
+                func.id
             )]),
             ty: IdlTypeDefinitionTy::Struct { fields },
             generics: None,
