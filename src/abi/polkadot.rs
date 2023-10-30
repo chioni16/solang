@@ -329,13 +329,20 @@ pub fn gen_project(contract_no: usize, ns: &ast::Namespace) -> InkProject {
             })
             .collect::<Vec<MessageParamSpec<PortableForm>>>();
 
-        ConstructorSpec::from_label(if f.name.is_empty() { "new" } else { &f.name }.into())
-            .selector(f.selector(ns, &contract_no).try_into().unwrap())
-            .payable(payable)
-            .args(args)
-            .docs(vec![render(&f.tags).as_str()])
-            .returns(ReturnTypeSpec::new(None))
-            .done()
+        ConstructorSpec::from_label(
+            if f.name.name.is_empty() {
+                "new"
+            } else {
+                &f.name.name
+            }
+            .into(),
+        )
+        .selector(f.selector(ns, &contract_no).try_into().unwrap())
+        .payable(payable)
+        .args(args)
+        .docs(vec![render(&f.tags).as_str()])
+        .returns(ReturnTypeSpec::new(None))
+        .done()
     };
 
     let constructors = ns.contracts[contract_no]
@@ -384,7 +391,11 @@ pub fn gen_project(contract_no: usize, ns: &ast::Namespace) -> InkProject {
 
                 let t = TypeDefTuple::new_portable(fields);
 
-                let path = path!(&ns.contracts[contract_no].id.name, &f.name, "return_type");
+                let path = path!(
+                    &ns.contracts[contract_no].id.name,
+                    &f.name.name,
+                    "return_type"
+                );
 
                 let ty = registry.register_type(Type::new(
                     path,
@@ -413,7 +424,7 @@ pub fn gen_project(contract_no: usize, ns: &ast::Namespace) -> InkProject {
         let label = if f.mangled_name_contracts.contains(&contract_no) {
             &f.mangled_name
         } else {
-            &f.name
+            &f.name.name
         };
         MessageSpec::from_label(label.into())
             .selector(f.selector(ns, &contract_no).try_into().unwrap())

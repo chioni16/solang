@@ -391,7 +391,7 @@ fn possible_functions(
         .filter(|func_no| {
             let func = &ns.functions[**func_no];
 
-            func.name == function_name && func.ty == pt::FunctionTy::Function
+            func.name.name == function_name && func.ty == pt::FunctionTy::Function
         })
         .cloned()
         .collect()
@@ -449,7 +449,7 @@ pub(super) fn try_resolve_using_call(
 
     for function_no in functions {
         let libfunc = &ns.functions[function_no];
-        if libfunc.name != func.name || libfunc.ty != pt::FunctionTy::Function {
+        if libfunc.name.name != func.name || libfunc.ty != pt::FunctionTy::Function {
             continue;
         }
 

@@ -14,7 +14,7 @@ use num_rational::BigRational;
 use once_cell::unsync::OnceCell;
 pub use solang_parser::diagnostics::*;
 use solang_parser::pt;
-use solang_parser::pt::{CodeLocation, FunctionTy, OptionalCodeLocation};
+use solang_parser::pt::{CodeLocation, FunctionTy, Identifier, OptionalCodeLocation};
 use std::cell::RefCell;
 use std::{
     collections::HashSet,
@@ -169,7 +169,7 @@ pub struct StructDecl {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct EventDecl {
     pub tags: Vec<Tag>,
-    pub name: String,
+    pub name: Identifier,
     pub loc: pt::Loc,
     pub contract: Option<usize>,
     pub fields: Vec<Parameter>,
@@ -320,7 +320,7 @@ pub struct Function {
     pub tags: Vec<Tag>,
     /// The location of the prototype (not body)
     pub loc: pt::Loc,
-    pub name: String,
+    pub name: Identifier,
     pub contract_no: Option<usize>,
     pub ty: pt::FunctionTy,
     pub signature: String,
@@ -402,7 +402,7 @@ impl FunctionAttributes for Function {
 impl Function {
     pub fn new(
         loc: pt::Loc,
-        name: String,
+        name: Identifier,
         contract_no: Option<usize>,
         tags: Vec<Tag>,
         ty: pt::FunctionTy,
@@ -415,7 +415,7 @@ impl Function {
         let signature = match ty {
             pt::FunctionTy::Fallback => String::from("@fallback"),
             pt::FunctionTy::Receive => String::from("@receive"),
-            _ => ns.signature(&name, &params),
+            _ => ns.signature(&name.name, &params),
         };
 
         let mutability = match mutability {
@@ -473,7 +473,7 @@ impl Function {
                     let discriminator_image = if self.mangled_name_contracts.contains(contract_no) {
                         &self.mangled_name
                     } else {
-                        &self.name
+                        &self.name.name
                     };
                     discriminator("global", discriminator_image.as_str())
                 }

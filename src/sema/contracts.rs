@@ -700,7 +700,7 @@ fn check_mangled_function_names(contract_no: usize, ns: &mut ast::Namespace) {
     for f in &public_functions {
         if let Some(offender) = public_functions
             .iter()
-            .find(|other| ns.functions[*f].mangled_name == ns.functions[**other].name)
+            .find(|other| ns.functions[*f].mangled_name == ns.functions[**other].name.name)
         {
             let f = &ns.functions[*f];
             let message = format!(
@@ -1276,7 +1276,9 @@ fn mangle_function_names(contract_no: usize, ns: &mut Namespace) {
             continue;
         }
 
-        if let Some(old_no) = repeated_names.insert(ns.functions[*func_no].name.clone(), *func_no) {
+        if let Some(old_no) =
+            repeated_names.insert(ns.functions[*func_no].name.name.clone(), *func_no)
+        {
             ns.functions[old_no]
                 .mangled_name_contracts
                 .insert(contract_no);

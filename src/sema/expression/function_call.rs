@@ -203,7 +203,7 @@ pub fn available_functions(
             ns.contracts[contract_no]
                 .all_functions
                 .keys()
-                .filter(|func_no| ns.functions[**func_no].name == name)
+                .filter(|func_no| ns.functions[**func_no].name.name == name)
                 .filter_map(|func_no| {
                     let is_abstract = ns.functions[*func_no].is_virtual
                         && !ns.contracts[contract_no].is_concrete();
@@ -234,7 +234,7 @@ pub fn available_super_functions(name: &str, contract_no: usize, ns: &Namespace)
                 .filter_map(|func_no| {
                     let func = &ns.functions[*func_no];
 
-                    if func.name == name && func.has_body {
+                    if func.name.name == name && func.has_body {
                         Some(*func_no)
                     } else {
                         None
@@ -2906,7 +2906,7 @@ fn preprocess_contract_call<T>(
     let mut name_matches: Vec<usize> = Vec::new();
 
     for function_no in ns.contracts[external_contract_no].all_functions.keys() {
-        if func.name != ns.functions[*function_no].name
+        if func.name != ns.functions[*function_no].name.name
             || ns.functions[*function_no].ty != pt::FunctionTy::Function
         {
             continue;
