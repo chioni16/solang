@@ -203,7 +203,7 @@ fn functions() {
     let func = ns
         .functions
         .iter()
-        .find(|func| func.name.name == "foo")
+        .find(|func| func.id.name == "foo")
         .unwrap();
 
     assert_eq!(func.tags[0].tag, "param");
@@ -244,7 +244,7 @@ fn functions() {
     let func = ns
         .functions
         .iter()
-        .find(|func| func.name.name == "foo")
+        .find(|func| func.id.name == "foo")
         .unwrap();
 
     assert_eq!(func.tags[0].tag, "return");
