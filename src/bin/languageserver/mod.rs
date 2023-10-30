@@ -1329,14 +1329,14 @@ impl<'a> Builder<'a> {
                 ));
             }
         }
-
-        let file_no = field.loc.file_no();
+        let loc = field.id.as_ref().map(|id| &id.loc).unwrap_or(&field.loc);
+        let file_no = loc.file_no();
         let file = &self.ns.files[file_no];
         self.hovers.push((
             file_no,
             HoverEntry {
-                start: field.loc.start(),
-                stop: field.loc.exclusive_end(),
+                start: loc.start(),
+                stop: loc.exclusive_end(),
                 val: make_code_block(format!(
                     "{} {}",
                     field.ty.to_string(self.ns),
@@ -1353,7 +1353,7 @@ impl<'a> Builder<'a> {
             ),
         };
         self.definitions
-            .insert(di.clone(), loc_to_range(&field.loc, file));
+            .insert(di.clone(), loc_to_range(loc, file));
         if let Some(dt) = get_type_definition(&field.ty) {
             self.types.insert(di, dt.into());
         }
