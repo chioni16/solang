@@ -1066,7 +1066,7 @@ impl<'a> Builder<'a> {
                 }
             }
 
-            ast::Expression::InternalFunction {loc, function_no, ..} => {
+            ast::Expression::InternalFunction {id, function_no, ..} => {
                 let fnc = &self.ns.functions[*function_no];
                 let mut msg_tg = render(&fnc.tags[..]);
                 if !msg_tg.is_empty() {
@@ -1086,6 +1086,8 @@ impl<'a> Builder<'a> {
                 let contract = fnc.contract_no.map(|contract_no| format!("{}.", self.ns.contracts[contract_no].id)).unwrap_or_default();
 
                 let val = format!("{} {}{}({}) returns ({})\n", fnc.ty, contract, fnc.id, params, rets);
+
+                let loc = id.loc;
 
                 self.hovers.push((
                     loc.file_no(),

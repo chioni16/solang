@@ -534,6 +534,7 @@ pub(super) fn try_resolve_using_call(
             returns,
             function: Box::new(Expression::InternalFunction {
                 loc: *loc,
+                id: func.clone(),
                 ty,
                 function_no,
                 signature: None,

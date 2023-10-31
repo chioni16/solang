@@ -102,6 +102,7 @@ pub(super) fn member_access(
 
                     expr = Ok(Expression::InternalFunction {
                         loc: e.loc(),
+                        id: id.clone(),
                         ty: function_type(func, false, resolve_to),
                         function_no: *function_no,
                         signature: None,

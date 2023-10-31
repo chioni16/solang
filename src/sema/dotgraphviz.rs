@@ -1202,6 +1202,7 @@ impl Dot {
                 ty,
                 function_no,
                 signature,
+                ..
             } => {
                 let mut labels = vec![
                     ty.to_string(ns),

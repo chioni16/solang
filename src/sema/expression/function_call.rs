@@ -317,6 +317,7 @@ pub fn function_call_pos_args(
 
         match resolve_internal_call(
             loc,
+            id,
             *function_no,
             context,
             resolve_to,
@@ -466,6 +467,7 @@ pub(super) fn function_call_named_args(
 
         match resolve_internal_call(
             loc,
+            id,
             *function_no,
             context,
             resolve_to,
@@ -2470,6 +2472,7 @@ fn evaluate_argument(
 /// possible to resolve the function.
 fn resolve_internal_call(
     loc: &Loc,
+    id: &pt::Identifier,
     function_no: usize,
     context: &ExprContext,
     resolve_to: ResolveTo,
@@ -2519,6 +2522,7 @@ fn resolve_internal_call(
         returns,
         function: Box::new(Expression::InternalFunction {
             loc: *loc,
+            id: id.clone(),
             ty,
             function_no,
             signature: if virtual_call && (func.is_virtual || func.is_override.is_some()) {
