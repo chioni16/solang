@@ -365,7 +365,7 @@ impl Namespace {
 
     /// Resolve a free function name with namespace
     pub(super) fn resolve_function_with_namespace(
-        &mut self,
+        &self,
         file_no: usize,
         contract_no: Option<usize>,
         name: &pt::IdentifierPath,
@@ -1134,11 +1134,10 @@ impl Namespace {
                         .into_iter()
                         .map(|p| {
                             if let Some(name) = p.id {
-                                diagnostics.push(Diagnostic::error(
+                                diagnostics.push(Diagnostic::warning(
                                     name.loc,
                                     "function type parameters cannot be named".to_string(),
                                 ));
-                                success = false;
                             }
                             p.ty
                         })
@@ -1148,11 +1147,10 @@ impl Namespace {
                         .into_iter()
                         .map(|p| {
                             if let Some(name) = p.id {
-                                diagnostics.push(Diagnostic::error(
+                                diagnostics.push(Diagnostic::warning(
                                     name.loc,
                                     "function type returns cannot be named".to_string(),
                                 ));
-                                success = false;
                             }
                             p.ty
                         })

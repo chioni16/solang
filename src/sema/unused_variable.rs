@@ -553,7 +553,7 @@ pub fn check_unused_events(ns: &mut Namespace) {
             }
 
             ns.diagnostics.push(Diagnostic::warning(
-                event.loc,
+                event.id.loc,
                 format!("event '{}' has never been emitted", event.id),
             ));
         }

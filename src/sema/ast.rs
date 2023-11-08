@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::symtable::Symtable;
-use crate::abi::anchor::discriminator;
+use crate::abi::anchor::function_discriminator;
 use crate::codegen::cfg::{ControlFlowGraph, Instr};
 use crate::diagnostics::Diagnostics;
 use crate::sema::ast::ExternalCallAccounts::{AbsentArgument, NoAccount};
@@ -169,7 +169,7 @@ pub struct StructDecl {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct EventDecl {
     pub tags: Vec<Tag>,
-    pub id: Identifier,
+    pub id: pt::Identifier,
     pub loc: pt::Loc,
     pub contract: Option<usize>,
     pub fields: Vec<Parameter>,
@@ -468,14 +468,14 @@ impl Function {
             selector.clone()
         } else if ns.target == Target::Solana {
             match self.ty {
-                FunctionTy::Constructor => discriminator("global", "new"),
+                FunctionTy::Constructor => function_discriminator("new"),
                 _ => {
                     let discriminator_image = if self.mangled_name_contracts.contains(contract_no) {
                         &self.mangled_name
                     } else {
                         &self.id.name
                     };
-                    discriminator("global", discriminator_image.as_str())
+                    function_discriminator(discriminator_image.as_str())
                 }
             }
         } else {
@@ -1199,6 +1199,11 @@ pub enum Expression {
         function_no: usize,
         args: Vec<Expression>,
     },
+    EventSelector {
+        loc: pt::Loc,
+        ty: Type,
+        event_no: usize,
+    },
 }
 
 #[derive(PartialEq, Eq, Clone, Default, Debug)]
@@ -1443,7 +1448,8 @@ impl Recurse for Expression {
                 | Expression::RationalNumberLiteral { .. }
                 | Expression::CodeLiteral { .. }
                 | Expression::BytesLiteral { .. }
-                | Expression::BoolLiteral { .. } => (),
+                | Expression::BoolLiteral { .. }
+                | Expression::EventSelector { .. } => (),
             }
         }
     }
@@ -1517,7 +1523,8 @@ impl CodeLocation for Expression {
             | Expression::InterfaceId { loc, .. }
             | Expression::And { loc, .. }
             | Expression::NamedMember { loc, .. }
-            | Expression::UserDefinedOperator { loc, .. } => *loc,
+            | Expression::UserDefinedOperator { loc, .. }
+            | Expression::EventSelector { loc, .. } => *loc,
         }
     }
 }

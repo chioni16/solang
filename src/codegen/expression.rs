@@ -14,6 +14,7 @@ use super::{
 use super::{polkadot, Options};
 use crate::codegen::array_boundary::handle_array_assign;
 use crate::codegen::constructor::call_constructor;
+use crate::codegen::events::new_event_emitter;
 use crate::codegen::unused_variable::should_remove_assignment;
 use crate::codegen::{Builtin, Expression};
 use crate::sema::ast::ExternalCallAccounts;
@@ -595,6 +596,15 @@ pub fn expression(
                 func_expr.external_function_selector()
             }
         },
+        ast::Expression::EventSelector { loc, ty, event_no } => {
+            let emitter = new_event_emitter(loc, *event_no, &[], ns);
+
+            Expression::BytesLiteral {
+                loc: *loc,
+                ty: ty.clone(),
+                value: emitter.selector(contract_no),
+            }
+        }
         ast::Expression::InternalFunctionCall { .. }
         | ast::Expression::ExternalFunctionCall { .. }
         | ast::Expression::ExternalFunctionCallRaw { .. }
@@ -1626,14 +1636,10 @@ fn payable_send(
         },
     );
 
-    if ns.target.is_polkadot() {
+    if ns.target != Target::Solana {
         polkadot::check_transfer_ret(loc, success, cfg, ns, opt, vartab, false).unwrap()
     } else {
-        Expression::Variable {
-            loc: *loc,
-            ty: Type::Bool,
-            var_no: success,
-        }
+        unreachable!("Value transfer does not exist on Solana");
     }
 }
 

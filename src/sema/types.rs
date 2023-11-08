@@ -129,8 +129,8 @@ pub fn resolve_typenames<'a>(
 
                 ns.events.push(EventDecl {
                     tags: Vec::new(),
-                    id: def.name.clone().unwrap(),
-                    loc: def.name.as_ref().unwrap().loc,
+                    id: def.name.as_ref().unwrap().to_owned(),
+                    loc: def.loc,
                     contract: None,
                     fields: Vec::new(),
                     anonymous: def.anonymous,
@@ -513,7 +513,7 @@ fn resolve_contract<'a>(
                     broken = true;
                 }
             }
-            pt::ContractPart::EventDefinition(ref pt) => {
+            pt::ContractPart::EventDefinition(pt) => {
                 annotions_not_allowed(&parts.annotations, "event", ns);
 
                 let event_no = ns.events.len();
@@ -536,8 +536,8 @@ fn resolve_contract<'a>(
 
                 ns.events.push(EventDecl {
                     tags: Vec::new(),
-                    id: pt.name.clone().unwrap(),
-                    loc: pt.name.as_ref().unwrap().loc,
+                    id: pt.name.as_ref().unwrap().to_owned(),
+                    loc: pt.loc,
                     contract: Some(contract_no),
                     fields: Vec::new(),
                     anonymous: pt.anonymous,

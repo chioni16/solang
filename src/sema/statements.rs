@@ -3,7 +3,6 @@
 use super::ast::*;
 use super::contracts::is_base;
 use super::diagnostics::Diagnostics;
-use super::eval::check_term_for_constant_overflow;
 use super::expression::{
     function_call::{available_functions, call_expr, named_call_expr},
     ExprContext, ResolveTo,
@@ -368,7 +367,8 @@ fn statement(
                     ResolveTo::Type(&var_ty),
                 )?;
 
-                expr.recurse(ns, check_term_for_constant_overflow);
+                expr.check_constant_overflow(diagnostics);
+
                 used_variable(ns, &expr, symtable);
 
                 Some(Arc::new(expr.cast(
@@ -423,6 +423,7 @@ fn statement(
         } => {
             symtable.enter_scope();
             let mut reachable = true;
+            let mut already_unreachable = false;
 
             let mut context = context.clone();
             context.unchecked |= *unchecked;
@@ -430,12 +431,12 @@ fn statement(
             let mut resolved_stmts = Vec::new();
 
             for stmt in statements {
-                if !reachable {
-                    ns.diagnostics.push(Diagnostic::error(
+                if !reachable && !already_unreachable {
+                    ns.diagnostics.push(Diagnostic::warning(
                         stmt.loc(),
                         "unreachable statement".to_string(),
                     ));
-                    return Err(());
+                    already_unreachable = true;
                 }
                 reachable = statement(
                     stmt,
@@ -761,7 +762,7 @@ fn statement(
         pt::Statement::Return(loc, Some(returns)) => {
             let expr = return_with_values(returns, loc, context, symtable, ns, diagnostics)?;
 
-            expr.recurse(ns, check_term_for_constant_overflow);
+            expr.check_constant_overflow(diagnostics);
 
             for offset in symtable.returns.iter() {
                 let elem = symtable.vars.get_mut(offset).unwrap();
@@ -821,7 +822,7 @@ fn statement(
                         ResolveTo::Discard,
                     )?;
 
-                    ret.recurse(ns, check_term_for_constant_overflow);
+                    ret.check_constant_overflow(diagnostics);
                     ret
                 }
                 pt::Expression::NamedFunctionCall(loc, ty, args) => {
@@ -836,7 +837,7 @@ fn statement(
                         diagnostics,
                         ResolveTo::Discard,
                     )?;
-                    ret.recurse(ns, check_term_for_constant_overflow);
+                    ret.check_constant_overflow(diagnostics);
                     ret
                 }
                 _ => {
@@ -911,7 +912,7 @@ fn statement(
                 for flag in flags {
                     if flag.string == "memory-safe" && ns.target == Target::EVM {
                         if let Some(prev) = &memory_safe {
-                            ns.diagnostics.push(Diagnostic::error_with_note(
+                            ns.diagnostics.push(Diagnostic::warning_with_note(
                                 flag.loc,
                                 format!("flag '{}' already specified", flag.string),
                                 *prev,
@@ -921,7 +922,7 @@ fn statement(
                             memory_safe = Some(flag.loc);
                         }
                     } else {
-                        ns.diagnostics.push(Diagnostic::error(
+                        ns.diagnostics.push(Diagnostic::warning(
                             flag.loc,
                             format!("flag '{}' not supported", flag.string),
                         ));
@@ -1417,9 +1418,9 @@ fn emit_event(
                     temp_diagnostics.push(Diagnostic::cast_error_with_note(
                         *loc,
                         format!(
-                            "event cannot be emmited with named fields as {unnamed_fields} of its fields do not have names"
+                            "event cannot be emitted with named fields as {unnamed_fields} of its fields do not have names"
                         ),
-                        event.loc,
+                        event.id.loc,
                         format!("definition of {}", event.id),
                     ));
                     matches = false;
