@@ -14,7 +14,7 @@ use num_rational::BigRational;
 use once_cell::unsync::OnceCell;
 pub use solang_parser::diagnostics::*;
 use solang_parser::pt;
-use solang_parser::pt::{CodeLocation, FunctionTy, Identifier, OptionalCodeLocation};
+use solang_parser::pt::{CodeLocation, FunctionTy, OptionalCodeLocation};
 use std::cell::RefCell;
 use std::{
     collections::HashSet,
@@ -156,7 +156,7 @@ pub enum StructType {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct StructDecl {
     pub tags: Vec<Tag>,
-    pub id: Identifier,
+    pub id: pt::Identifier,
     pub loc: pt::Loc,
     pub contract: Option<String>,
     pub fields: Vec<Parameter>,
@@ -169,6 +169,7 @@ pub struct StructDecl {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct EventDecl {
     pub tags: Vec<Tag>,
+    // pub id: pt::IdentifierPath,
     pub id: pt::Identifier,
     pub loc: pt::Loc,
     pub contract: Option<usize>,
@@ -220,7 +221,7 @@ impl fmt::Display for StructDecl {
 #[derive(Debug)]
 pub struct EnumDecl {
     pub tags: Vec<Tag>,
-    pub id: Identifier,
+    pub id: pt::Identifier,
     pub contract: Option<String>,
     pub loc: pt::Loc,
     pub ty: Type,
@@ -320,7 +321,7 @@ pub struct Function {
     pub tags: Vec<Tag>,
     /// The location of the prototype (not body)
     pub loc: pt::Loc,
-    pub id: Identifier,
+    pub id: pt::Identifier,
     pub contract_no: Option<usize>,
     pub ty: pt::FunctionTy,
     pub signature: String,
@@ -402,7 +403,7 @@ impl FunctionAttributes for Function {
 impl Function {
     pub fn new(
         loc: pt::Loc,
-        name: Identifier,
+        name: pt::Identifier,
         contract_no: Option<usize>,
         tags: Vec<Tag>,
         ty: pt::FunctionTy,
@@ -1136,7 +1137,8 @@ pub enum Expression {
     },
     InternalFunction {
         loc: pt::Loc,
-        id: pt::Identifier,
+        // id: pt::Identifier,
+        id: pt::IdentifierPath,
         ty: Type,
         function_no: usize,
         signature: Option<String>,

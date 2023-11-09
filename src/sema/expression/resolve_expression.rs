@@ -93,6 +93,22 @@ pub fn expression(
             address_literal(loc, address, ns, diagnostics)
         }
         pt::Expression::Variable(id) => {
+            use std::fs::OpenOptions;
+            use std::io::Write;
+            let mut data_file = OpenOptions::new()
+                .append(true)
+                .open("/tmp/log")
+                .expect("cannot open file");
+            data_file
+                .write("=".repeat(100).as_bytes())
+                .expect("write failed");
+            data_file
+                .write("\nexpression -> variable: \n".as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("id: {:#?}\n", id).as_bytes())
+                .expect("write failed");
+
             variable(id, context, ns, symtable, diagnostics, resolve_to)
         }
         pt::Expression::Add(loc, l, r) => {
@@ -343,16 +359,40 @@ pub fn expression(
         pt::Expression::ArraySubscript(loc, array, Some(index)) => {
             array_subscript(loc, array, index, context, ns, symtable, diagnostics)
         }
-        pt::Expression::MemberAccess(loc, e, id) => member_access(
-            loc,
-            e.remove_parenthesis(),
-            id,
-            context,
-            ns,
-            symtable,
-            diagnostics,
-            resolve_to,
-        ),
+        pt::Expression::MemberAccess(loc, e, id) => {
+            use std::fs::OpenOptions;
+            use std::io::Write;
+            let mut data_file = OpenOptions::new()
+                .append(true)
+                .open("/tmp/log")
+                .expect("cannot open file");
+            data_file
+                .write("=".repeat(100).as_bytes())
+                .expect("write failed");
+            data_file
+                .write("\nexpression -> member_access: \n".as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("loc: {:#?}\n", loc).as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("e: {:#?}\n", e).as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("id: {:#?}\n", id).as_bytes())
+                .expect("write failed");
+
+            member_access(
+                loc,
+                e.remove_parenthesis(),
+                id,
+                context,
+                ns,
+                symtable,
+                diagnostics,
+                resolve_to,
+            )
+        },
         pt::Expression::Or(loc, left, right) => {
             let boolty = Type::Bool;
             let l = expression(

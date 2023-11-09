@@ -196,9 +196,26 @@ pub fn resolve_function_body(
                     ));
                 } else {
                     let modifier_name = &modifier.name.identifiers[0];
+                    use std::fs::OpenOptions;
+                    use std::io::Write;
+                    let mut data_file = OpenOptions::new()
+                        .append(true)
+                        .open("/tmp/log")
+                        .expect("cannot open file");
+                    data_file
+                        .write("=".repeat(100).as_bytes())
+                        .expect("write failed");
+                    data_file
+                        .write("\nresolve_function_body: \n".as_bytes())
+                        .expect("write failed");
+                    data_file
+                        .write(format!("id_path: {:#?}\n", modifier.name).as_bytes())
+                        .expect("write failed");
+
                     if let Ok(e) = function_call_pos_args(
                         &modifier.loc,
                         modifier_name,
+                        &modifier.name,
                         pt::FunctionTy::Modifier,
                         modifier.args.as_ref().unwrap_or(&Vec::new()),
                         available_functions(

@@ -113,9 +113,46 @@ pub(super) fn member_access(
 
                     name_matches += 1;
 
+                    let mut identifiers = vec![id.clone()];
+                    let mut curr_expr = e;
+                    loop {
+                        match curr_expr {
+                            pt::Expression::MemberAccess(_, next_expr, id) => {
+                                identifiers.push(id.clone());
+                                curr_expr = &next_expr;
+                            }
+                            pt::Expression::Variable(id) => {
+                                identifiers.push(id.clone());
+                                break;
+                            }
+                            _ => break,
+                        }
+                    }
+                    identifiers.reverse();
+                    let id_path = pt::IdentifierPath {
+                        loc: *loc,
+                        identifiers,
+                    };
+
+                    use std::fs::OpenOptions;
+                    use std::io::Write;
+                    let mut data_file = OpenOptions::new()
+                        .append(true)
+                        .open("/tmp/log")
+                        .expect("cannot open file");
+                    data_file
+                        .write("=".repeat(100).as_bytes())
+                        .expect("write failed");
+                    data_file
+                        .write("\nmember_access: \n".as_bytes())
+                        .expect("write failed");
+                    data_file
+                        .write(format!("id_path: {:#?}\n", id_path).as_bytes())
+                        .expect("write failed");
+
                     expr = Ok(Expression::InternalFunction {
                         loc: e.loc(),
-                        id: id.clone(),
+                        id: id_path,
                         ty: function_type(func, false, resolve_to),
                         function_no: *function_no,
                         signature: None,

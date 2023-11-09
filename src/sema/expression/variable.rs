@@ -96,7 +96,7 @@ pub(super) fn variable(
                 var_no,
             })
         }
-        Some(Symbol::Function(_)) => {
+        Some(Symbol::Function(locs)) => {
             let mut name_matches = 0;
             let mut expr = None;
 
@@ -115,10 +115,35 @@ pub(super) fn variable(
                     returns: func.returns.iter().map(|p| p.ty.clone()).collect(),
                 };
 
+                let id_path = pt::IdentifierPath {
+                    loc: id.loc,
+                    identifiers: vec![id.clone()],
+                };
+
+                use std::fs::OpenOptions;
+                use std::io::Write;
+                let mut data_file = OpenOptions::new()
+                    .append(true)
+                    .open("/tmp/log")
+                    .expect("cannot open file");
+                data_file
+                    .write("=".repeat(100).as_bytes())
+                    .expect("write failed");
+                data_file
+                    .write("\nvariable: \n".as_bytes())
+                    .expect("write failed");
+                data_file
+                    .write(format!("locs: {:#?}\n", locs).as_bytes())
+                    .expect("write failed");
+                data_file
+                    .write(format!("id_path: {:#?}\n", id_path).as_bytes())
+                    .expect("write failed");
+
+
                 name_matches += 1;
                 expr = Some(Expression::InternalFunction {
                     loc: id.loc,
-                    id: id.clone(),
+                    id: id_path,
                     ty,
                     function_no,
                     signature: if func.is_virtual || func.is_override.is_some() {

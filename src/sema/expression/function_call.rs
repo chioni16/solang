@@ -250,6 +250,7 @@ pub fn available_super_functions(name: &str, contract_no: usize, ns: &Namespace)
 pub fn function_call_pos_args(
     loc: &pt::Loc,
     id: &pt::Identifier,
+    id_path: &pt::IdentifierPath,
     func_ty: pt::FunctionTy,
     args: &[pt::Expression],
     function_nos: Vec<usize>,
@@ -318,6 +319,7 @@ pub fn function_call_pos_args(
         match resolve_internal_call(
             loc,
             id,
+            id_path,
             *function_no,
             context,
             resolve_to,
@@ -361,6 +363,7 @@ pub fn function_call_pos_args(
 pub(super) fn function_call_named_args(
     loc: &pt::Loc,
     id: &pt::Identifier,
+    id_path: pt::IdentifierPath,
     args: &[pt::NamedArgument],
     function_nos: Vec<usize>,
     virtual_call: bool,
@@ -468,6 +471,7 @@ pub(super) fn function_call_named_args(
         match resolve_internal_call(
             loc,
             id,
+            &id_path,
             *function_no,
             context,
             resolve_to,
@@ -551,9 +555,31 @@ fn try_namespace(
                     return Err(());
                 }
 
+                let id_path = pt::IdentifierPath {
+                    loc: *loc,
+                    identifiers: vec![namespace.clone(), func.clone()],
+                };
+
+                use std::fs::OpenOptions;
+                use std::io::Write;
+                let mut data_file = OpenOptions::new()
+                    .append(true)
+                    .open("/tmp/log")
+                    .expect("cannot open file");
+                data_file
+                    .write("=".repeat(100).as_bytes())
+                    .expect("write failed");
+                data_file
+                    .write("\nmethod_call_named_args (super): \n".as_bytes())
+                    .expect("write failed");
+                data_file
+                    .write(format!("id_path: {:#?}\n", id_path).as_bytes())
+                    .expect("write failed");
+
                 return Ok(Some(function_call_pos_args(
                     loc,
                     func,
+                    &id_path,
                     pt::FunctionTy::Function,
                     args,
                     available_super_functions(&func.name, cur_contract_no, ns),
@@ -584,9 +610,31 @@ fn try_namespace(
                     return Err(());
                 }
 
+                let id_path = pt::IdentifierPath {
+                    loc: *loc,
+                    identifiers: vec![namespace.clone(), func.clone()],
+                };
+
+                use std::fs::OpenOptions;
+                use std::io::Write;
+                let mut data_file = OpenOptions::new()
+                    .append(true)
+                    .open("/tmp/log")
+                    .expect("cannot open file");
+                data_file
+                    .write("=".repeat(100).as_bytes())
+                    .expect("write failed");
+                data_file
+                    .write("\nmethod_call_named_args (library or base contract call): \n".as_bytes())
+                    .expect("write failed");
+                data_file
+                    .write(format!("id_path: {:#?}\n", id_path).as_bytes())
+                    .expect("write failed");
+
                 return Ok(Some(function_call_pos_args(
                     loc,
                     func,
+                    &id_path,
                     pt::FunctionTy::Function,
                     args,
                     available_functions(
@@ -631,9 +679,30 @@ fn try_namespace(
                         return Err(());
                     }
 
+                    let id_path = pt::IdentifierPath {
+                        loc: *loc,
+                        identifiers: vec![namespace.clone(), func.clone()],
+                    };
+                    use std::fs::OpenOptions;
+                    use std::io::Write;
+                    let mut data_file = OpenOptions::new()
+                        .append(true)
+                        .open("/tmp/log")
+                        .expect("cannot open file");
+                    data_file
+                        .write("=".repeat(100).as_bytes())
+                        .expect("write failed");
+                    data_file
+                        .write("\nmethod_call_named_args (is a base contract of us): \n".as_bytes())
+                        .expect("write failed");
+                    data_file
+                        .write(format!("id_path: {:#?}\n", id_path).as_bytes())
+                        .expect("write failed");
+
                     return Ok(Some(function_call_pos_args(
                         loc,
                         func,
+                        &id_path,
                         pt::FunctionTy::Function,
                         args,
                         available_functions(
@@ -1399,9 +1468,23 @@ pub(super) fn method_call_pos_args(
                 ));
             }
 
+            use std::fs::OpenOptions;
+            use std::io::Write;
+            let mut data_file = OpenOptions::new()
+                .append(true)
+                .open("/tmp/log")
+                .expect("cannot open file");
+            data_file
+                .write("\n\nmethod_call_pos_args\n".as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("path: {:#?}\n", path).as_bytes())
+                .expect("write failed");
+
             return function_call_pos_args(
                 loc,
                 func,
+                &path,
                 pt::FunctionTy::Function,
                 args,
                 list.iter().map(|(_, no)| *no).collect(),
@@ -1528,9 +1611,31 @@ pub(super) fn method_call_named_args(
                     return Err(());
                 }
 
+                let id_path = pt::IdentifierPath {
+                    loc: *loc,
+                    identifiers: vec![namespace.clone(), func_name.clone()],
+                };
+
+                use std::fs::OpenOptions;
+                use std::io::Write;
+                let mut data_file = OpenOptions::new()
+                    .append(true)
+                    .open("/tmp/log")
+                    .expect("cannot open file");
+                data_file
+                    .write("=".repeat(100).as_bytes())
+                    .expect("write failed");
+                data_file
+                    .write("\nmethod_call_named_args (super): \n".as_bytes())
+                    .expect("write failed");
+                data_file
+                    .write(format!("id_path: {:#?}\n", id_path).as_bytes())
+                    .expect("write failed");
+
                 return function_call_named_args(
                     loc,
                     func_name,
+                    id_path,
                     args,
                     available_super_functions(&func_name.name, cur_contract_no, ns),
                     false,
@@ -1560,9 +1665,31 @@ pub(super) fn method_call_named_args(
                     return Err(());
                 }
 
+                let id_path = pt::IdentifierPath {
+                    loc: *loc,
+                    identifiers: vec![namespace.clone(), func_name.clone()],
+                };
+
+                use std::fs::OpenOptions;
+                use std::io::Write;
+                let mut data_file = OpenOptions::new()
+                    .append(true)
+                    .open("/tmp/log")
+                    .expect("cannot open file");
+                data_file
+                    .write("=".repeat(100).as_bytes())
+                    .expect("write failed");
+                data_file
+                    .write("\nmethod_call_named_args (library or base contract call): \n".as_bytes())
+                    .expect("write failed");
+                data_file
+                    .write(format!("id_path: {:#?}\n", id_path).as_bytes())
+                    .expect("write failed");
+
                 return function_call_named_args(
                     loc,
                     func_name,
+                    id_path,
                     args,
                     available_functions(
                         &func_name.name,
@@ -1606,9 +1733,30 @@ pub(super) fn method_call_named_args(
                         return Err(());
                     }
 
+                    let id_path = pt::IdentifierPath {
+                        loc: *loc,
+                        identifiers: vec![namespace.clone(), func_name.clone()],
+                    };
+                    use std::fs::OpenOptions;
+                    use std::io::Write;
+                    let mut data_file = OpenOptions::new()
+                        .append(true)
+                        .open("/tmp/log")
+                        .expect("cannot open file");
+                    data_file
+                        .write("=".repeat(100).as_bytes())
+                        .expect("write failed");
+                    data_file
+                        .write("\nmethod_call_named_args (is a base contract of us): \n".as_bytes())
+                        .expect("write failed");
+                    data_file
+                        .write(format!("id_path: {:#?}\n", id_path).as_bytes())
+                        .expect("write failed");
+
                     return function_call_named_args(
                         loc,
                         func_name,
+                        id_path,
                         args,
                         available_functions(
                             &func_name.name,
@@ -1686,9 +1834,26 @@ pub(super) fn method_call_named_args(
                 ));
             }
 
+            use std::fs::OpenOptions;
+            use std::io::Write;
+            let mut data_file = OpenOptions::new()
+                .append(true)
+                .open("/tmp/log")
+                .expect("cannot open file");
+            data_file
+                .write("=".repeat(100).as_bytes())
+                .expect("write failed");
+            data_file
+                .write("\nmethod_call_named_args (is a base contract of us): \n".as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("id_path: {:#?}\n", path).as_bytes())
+                .expect("write failed");
+
             return function_call_named_args(
                 loc,
                 func_name,
+                path,
                 args,
                 list.iter().map(|(_, no)| *no).collect(),
                 false,
@@ -2259,22 +2424,59 @@ pub fn function_call_expr(
     diagnostics: &mut Diagnostics,
     resolve_to: ResolveTo,
 ) -> Result<Expression, ()> {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+    let mut data_file = OpenOptions::new()
+        .append(true)
+        .open("/tmp/log")
+        .expect("cannot open file");
+    data_file
+        .write("=".repeat(100).as_bytes())
+        .expect("write failed");
+    data_file
+        .write("\nfunction_call_expr: \n".as_bytes())
+        .expect("write failed");
+    data_file
+        .write(format!("loc: {:#?}\n", loc).as_bytes())
+        .expect("write failed");
+    data_file
+        .write(format!("ty: {:#?}\n", ty).as_bytes())
+        .expect("write failed");
+    data_file
+        .write(format!("args: {:#?}\n", args).as_bytes())
+        .expect("write failed");
+
     let (ty, call_args, call_args_loc) = collect_call_args(ty, diagnostics)?;
 
     match ty.remove_parenthesis() {
-        pt::Expression::MemberAccess(_, member, func) => method_call_pos_args(
-            loc,
-            member,
-            func,
-            args,
-            &call_args,
-            call_args_loc,
-            context,
-            ns,
-            symtable,
-            diagnostics,
-            resolve_to,
-        ),
+        pt::Expression::MemberAccess(inner_loc, member, func) => {
+            data_file
+                .write("\n\nfunction_call_expr -> method_call_pos_args: \n".as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("inner_loc: {:#?}\n", inner_loc).as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("member: {:#?}\n", member).as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("func: {:#?}\n", func).as_bytes())
+                .expect("write failed");
+
+            method_call_pos_args(
+                loc,
+                member,
+                func,
+                args,
+                &call_args,
+                call_args_loc,
+                context,
+                ns,
+                symtable,
+                diagnostics,
+                resolve_to,
+            )
+        }
         pt::Expression::Variable(id) => {
             // is it a builtin
             if builtin::is_builtin_call(None, &id.name, ns) {
@@ -2338,9 +2540,21 @@ pub fn function_call_expr(
                     return Err(());
                 }
 
+                let id_path = pt::IdentifierPath {
+                    loc: id.loc,
+                    identifiers: vec![id.clone()],
+                };
+                data_file
+                    .write("\n\nfunction_call_expr -> function_call_pos_args: \n".as_bytes())
+                    .expect("write failed");
+                data_file
+                    .write(format!("id_path:  {:#?}\n", id_path).as_bytes())
+                    .expect("write failed");
+
                 function_call_pos_args(
                     loc,
                     id,
+                    &id_path,
                     pt::FunctionTy::Function,
                     args,
                     available_functions(&id.name, true, context.file_no, context.contract_no, ns),
@@ -2379,22 +2593,59 @@ pub fn named_function_call_expr(
     diagnostics: &mut Diagnostics,
     resolve_to: ResolveTo,
 ) -> Result<Expression, ()> {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+    let mut data_file = OpenOptions::new()
+        .append(true)
+        .open("/tmp/log")
+        .expect("cannot open file");
+    data_file
+        .write("=".repeat(100).as_bytes())
+        .expect("write failed");
+    data_file
+        .write("\nnamed_function_call_expr: \n".as_bytes())
+        .expect("write failed");
+    data_file
+        .write(format!("loc: {:#?}\n", loc).as_bytes())
+        .expect("write failed");
+    data_file
+        .write(format!("ty: {:#?}\n", ty).as_bytes())
+        .expect("write failed");
+    data_file
+        .write(format!("args: {:#?}\n", args).as_bytes())
+        .expect("write failed");
+
     let (ty, call_args, call_args_loc) = collect_call_args(ty, diagnostics)?;
 
     match ty {
-        pt::Expression::MemberAccess(_, member, func) => method_call_named_args(
-            loc,
-            member,
-            func,
-            args,
-            &call_args,
-            call_args_loc,
-            context,
-            ns,
-            symtable,
-            diagnostics,
-            resolve_to,
-        ),
+        pt::Expression::MemberAccess(inner_loc, member, func) => {
+            data_file
+                .write("\n\nnamed_function_call_expr -> method_call_named_args: \n".as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("inner_loc: {:#?}\n", inner_loc).as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("member: {:#?}\n", member).as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("func: {:#?}\n", func).as_bytes())
+                .expect("write failed");
+
+            method_call_named_args(
+                loc,
+                member,
+                func,
+                args,
+                &call_args,
+                call_args_loc,
+                context,
+                ns,
+                symtable,
+                diagnostics,
+                resolve_to,
+            )
+        }
         pt::Expression::Variable(id) => {
             if let Some(loc) = call_args_loc {
                 diagnostics.push(Diagnostic::error(
@@ -2404,9 +2655,22 @@ pub fn named_function_call_expr(
                 return Err(());
             }
 
+            let id_path = pt::IdentifierPath {
+                loc: id.loc,
+                identifiers: vec![id.clone()],
+            };
+
+            data_file
+                .write("\n\nnamed_function_call_expr -> function_call_named_args: \n".as_bytes())
+                .expect("write failed");
+            data_file
+                .write(format!("id_path: {:#?}\n", id_path).as_bytes())
+                .expect("write failed");
+
             function_call_named_args(
                 loc,
                 id,
+                id_path,
                 args,
                 available_functions(&id.name, true, context.file_no, context.contract_no, ns),
                 true,
@@ -2485,7 +2749,8 @@ fn evaluate_argument(
 /// possible to resolve the function.
 fn resolve_internal_call(
     loc: &Loc,
-    id: &pt::Identifier,
+    _id: &pt::Identifier,
+    id_path: &pt::IdentifierPath,
     function_no: usize,
     context: &ExprContext,
     resolve_to: ResolveTo,
@@ -2535,7 +2800,7 @@ fn resolve_internal_call(
         returns,
         function: Box::new(Expression::InternalFunction {
             loc: *loc,
-            id: id.clone(),
+            id: id_path.clone(),
             ty,
             function_no,
             signature: if virtual_call && (func.is_virtual || func.is_override.is_some()) {
